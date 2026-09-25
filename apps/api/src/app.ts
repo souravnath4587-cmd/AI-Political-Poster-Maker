@@ -1,8 +1,10 @@
 import express from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
+import { isProduction } from './config/env';
 import { logger } from './lib/logger';
 import { errorHandler, notFound } from './middleware/errorHandler';
+import { devRouter } from './routes/dev';
 import { healthRouter } from './routes/health';
 
 export function createApp() {
@@ -17,6 +19,7 @@ export function createApp() {
   app.use(express.json({ limit: '100kb' }));
 
   app.use('/api/health', healthRouter);
+  if (!isProduction) app.use('/api/dev', devRouter);
 
   app.use(notFound);
   app.use(errorHandler);

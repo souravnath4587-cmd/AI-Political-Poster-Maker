@@ -2,6 +2,7 @@ import { env } from './config/env';
 import { connectDb, disconnectDb } from './config/db';
 import { logger } from './lib/logger';
 import { createApp } from './app';
+import { closeBrowser } from './services/render';
 
 async function main() {
   await connectDb();
@@ -13,6 +14,7 @@ async function main() {
   const shutdown = (signal: string) => {
     logger.info(`${signal} received, shutting down`);
     server.close(async () => {
+      await closeBrowser();
       await disconnectDb();
       process.exit(0);
     });

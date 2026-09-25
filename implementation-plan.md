@@ -52,7 +52,7 @@ Goal: prove the riskiest part first. Correct Bangla conjuncts in an A3 PNG, rend
 
 | ID | Task | Est | Pri | Done when |
 |---|---|---|---|---|
-| 1.1 | Bundle OFL fonts in `render/fonts`; hard-coded HTML poster containing "সংগ্রাম", "শ্রদ্ধাঞ্জলি", "ক্ষ", "ন্ত্র" | 45m | P0 | HTML looks right in local Chrome |
+| 1.1 | Bundle OFL fonts in `apps/api/assets/fonts`; hard-coded HTML poster containing "সংগ্রাম", "শ্রদ্ধাঞ্জলি", "ক্ষ", "ন্ত্র" | 45m | P0 | HTML looks right in local Chrome |
 | 1.2 | `services/render.ts`: one shared browser, new page per render, page closed in `finally`, concurrency limit 1–2 | 45m | P0 | 10 renders in a row with no leaked pages or growing memory |
 | 1.3 | Export 4:5 (1080×1350) and A3 (3508×4961 via `deviceScaleFactor`); temporary `/api/dev/render-test` route; measure time and memory on Render | 45m | P0 | A3 PNG downloaded from Render, conjuncts correct, render < 30 s |
 | 1.4 | In-page text fitting: shrink font until text fits the slot's box and max lines (R5) | 45m | P1 | 60-char name fits without overflow |

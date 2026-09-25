@@ -29,6 +29,7 @@ RUN cd apps/api \
     && rm -rf /var/lib/apt/lists/* \
     && chown -R node:node /app/.cache
 COPY --from=build /app/apps/api/dist apps/api/dist
+COPY apps/api/assets apps/api/assets
 
 USER node
 WORKDIR /app/apps/api

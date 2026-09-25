@@ -48,7 +48,7 @@
 │     │  ├─ middleware/    # requireAuth, requireAdmin, rateLimits, errorHandler, originCheck
 │     │  ├─ routes/        # auth, templates, posters, upload
 │     │  ├─ services/      # session, otp, sms, quota, gemini, render, storage, blocklist
-│     │  └─ render/        # HTML templates, bundled fonts, watermark asset
+│     │  └─ render/        # HTML templates, in-page scripts (fonts in apps/api/assets/fonts)
 │     ├─ scripts/          # seed-templates, seed-users, generate-backgrounds (offline Gemini)
 │     └─ Dockerfile
 └─ packages/
@@ -244,7 +244,7 @@ SDK: **`@google/genai`** (the current official Google Gen AI SDK). Check the mod
 |---|---|
 | Engine | Puppeteer with its bundled Chrome (HarfBuzz shapes Bangla conjuncts correctly; node-canvas does not reliably) |
 | Templates | Plain HTML/CSS strings built from `layoutConfig` + user data (escaped), with fonts loaded from local files via `@font-face` |
-| Fonts | Noto Serif Bengali, Noto Sans Bengali, Hind Siliguri — OFL, bundled in `apps/api/src/render/fonts` |
+| Fonts | Noto Serif Bengali, Noto Sans Bengali, Hind Siliguri — OFL, bundled in `apps/api/assets/fonts` and inlined as data URIs (no network or file access from Chromium) |
 | Text fitting | Measure in the page (`scrollHeight`/`scrollWidth`) and shrink font size to fit per `layoutConfig` rules (R5) |
 | Output sizes | 4:5 at 1080×1350 (preview + social); A3 at 3508×4961 rendered at CSS size × `deviceScaleFactor` on download (R9) |
 | Browser lifecycle | One shared browser instance, a new page per render, page always closed in `finally`; limit to 1–2 concurrent renders |

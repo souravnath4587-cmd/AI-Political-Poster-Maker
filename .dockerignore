@@ -3,6 +3,7 @@
 **/.next
 **/.env
 **/.env.*
+**/.data
 .git
 apps/web
 *.md

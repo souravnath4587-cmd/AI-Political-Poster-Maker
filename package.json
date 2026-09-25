@@ -6,17 +6,19 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "dev": "concurrently -n db,api,web -c yellow,cyan,magenta \"pnpm dev:db\" \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": "pnpm --filter @app/api dev",
     "dev:web": "pnpm --filter @app/web dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "dev:db": "pnpm --filter @app/api dev:db"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "concurrently": "^10.0.5",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.9",
