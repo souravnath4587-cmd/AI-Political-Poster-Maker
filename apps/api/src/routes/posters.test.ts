@@ -15,7 +15,11 @@ vi.mock('../services/render', () => ({
   },
 }));
 let stored = 0;
+const deleted: string[] = [];
 vi.mock('../services/storage', () => ({
+  deleteImage: async (publicId: string) => {
+    deleted.push(publicId);
+  },
   storeImage: async (_buf: Buffer, { folder }: { folder: string }) => ({
     publicId: `${folder}/img${++stored}`,
     version: 1,
@@ -46,6 +50,7 @@ let mourningId: string;
 beforeEach(async () => {
   renderCalls.length = 0;
   renderShouldFail = false;
+  deleted.length = 0;
   const [victory, mourning] = await Promise.all(
     TEMPLATE_SEEDS.map((seed) =>
       Template.create({ ...seed, thumbnailUrl: `/t/${seed.slug}.webp` }),
@@ -322,5 +327,81 @@ describe('daily quota', () => {
       await agent.get(`/api/posters/${body.poster.id}/download?size=a3`).expect(302);
     }
     expect((await agent.get('/api/quota')).body.quota.posters.used).toBe(1);
+  });
+});
+
+describe('blocked content', () => {
+  it('refuses blocked text on create and regenerate, before using quota', async () => {
+    const { agent, userId } = await login('01712345678');
+    const input = await victoryInput(userId);
+
+    const bad = await agent
+      .post('/api/posters')
+      .send({ ...input, text: { ...input.text, headline: 'ওদের হত্যা কর' } });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toMatchObject({ code: 'BLOCKED_CONTENT', field: 'headline' });
+
+    const { body } = await agent.post('/api/posters').send(input).expect(201);
+    const regen = await agent
+      .post(`/api/posters/${body.poster.id}/regenerate`)
+      .send({ text: { ...input.text, message: 'ওদের জবাই কর' } });
+    expect(regen.body.error).toMatchObject({ code: 'BLOCKED_CONTENT', field: 'message' });
+
+    const quota = (await agent.get('/api/quota')).body.quota;
+    expect(quota.posters.used).toBe(1);
+    expect(quota.regenerations.used).toBe(0);
+  });
+});
+
+describe('history paging', () => {
+  it('pages newest first with a cursor', async () => {
+    const { agent, userId } = await login('01712345678');
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      ids.push((await agent.post('/api/posters').send(await victoryInput(userId))).body.poster.id);
+    }
+
+    const first = (await agent.get('/api/posters/me?limit=2')).body;
+    expect(first.posters.map((p: { id: string }) => p.id)).toEqual([ids[2], ids[1]]);
+    expect(first.nextCursor).toBe(ids[1]);
+
+    const second = (await agent.get(`/api/posters/me?limit=2&before=${first.nextCursor}`)).body;
+    expect(second.posters.map((p: { id: string }) => p.id)).toEqual([ids[0]]);
+    expect(second.nextCursor).toBeNull();
+  });
+});
+
+describe('DELETE /api/posters/:id', () => {
+  it('deletes the poster, its images and photos no other poster uses', async () => {
+    const { agent, userId } = await login('01712345678');
+    const input = await victoryInput(userId);
+    const first = (await agent.post('/api/posters').send(input)).body.poster;
+    await agent.get(`/api/posters/${first.id}/download?size=a3`).expect(302);
+    // A second poster reuses the requester photo but has its own leader photo.
+    const second = (
+      await agent.post('/api/posters').send({
+        ...input,
+        photos: { ...input.photos, leader1Photo: await upload(userId, 'leader') },
+      })
+    ).body.poster;
+
+    await agent.delete(`/api/posters/${first.id}`).expect(204);
+
+    expect(await Poster.exists({ _id: first.id })).toBeNull();
+    expect((await agent.get(`/api/posters/${first.id}`)).status).toBe(404);
+    // 4:5 + A3 of the poster, and its own leader photo; the shared requester photo stays.
+    expect(deleted).toHaveLength(3);
+    expect(await Upload.exists({ _id: input.photos.leader1Photo })).toBeNull();
+    expect(await Upload.exists({ _id: input.photos.requesterPhoto })).not.toBeNull();
+    expect((await agent.get(`/api/posters/${second.id}`)).status).toBe(200);
+  });
+
+  it('does not let other users delete a poster', async () => {
+    const owner = await login('01712345678');
+    const { body } = await owner.agent.post('/api/posters').send(await victoryInput(owner.userId));
+    const stranger = await login('01812345678');
+    expect((await stranger.agent.delete(`/api/posters/${body.poster.id}`)).status).toBe(404);
+    expect(await Poster.exists({ _id: body.poster.id })).not.toBeNull();
+    expect(deleted).toHaveLength(0);
   });
 });

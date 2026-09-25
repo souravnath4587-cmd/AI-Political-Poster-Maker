@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreatePosterInput,
   PosterListResponse,
@@ -33,10 +33,33 @@ export function useTemplate(id: string | null) {
   });
 }
 
+/** The newest posters (dashboard strip). */
 export function useMyPosters() {
   return useQuery({
     queryKey: ['posters', 'me'],
-    queryFn: async () => (await api<PosterListResponse>('/posters/me')).posters,
+    queryFn: async () => (await api<PosterListResponse>('/posters/me?limit=10')).posters,
+  });
+}
+
+/** All posters, a page at a time (history page). */
+export function usePosterHistory() {
+  return useInfiniteQuery({
+    queryKey: ['posters', 'history'],
+    queryFn: ({ pageParam }) =>
+      api<PosterListResponse>(`/posters/me?limit=12${pageParam ? `&before=${pageParam}` : ''}`),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+export function useDeletePoster() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/posters/${id}`, { method: 'DELETE' }),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: ['poster', id] });
+      void queryClient.invalidateQueries({ queryKey: ['posters'] });
+    },
   });
 }
 

@@ -1,8 +1,9 @@
 'use client';
 
-import type { FieldErrors, UseFormRegister, UseFormWatch } from 'react-hook-form';
-import { TEXT_LIMITS, toBanglaDigits, type TextField } from '@app/shared';
+import type { FieldErrors, UseFormRegister, UseFormSetError, UseFormWatch } from 'react-hook-form';
+import { TEXT_FIELDS, TEXT_LIMITS, toBanglaDigits, type TextField } from '@app/shared';
 import { Input } from '@/components/ui/input';
+import { ApiError } from '@/lib/api';
 import { TEXT_FIELD_LABELS, TEXT_FIELD_PLACEHOLDERS } from '@/lib/labels';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +39,7 @@ interface PosterTextFieldsProps {
 function fieldError(code: string | undefined, field: TextField): string | null {
   if (!code) return null;
   if (code === 'FIELD_REQUIRED') return 'এই ঘরটি পূরণ করুন।';
+  if (code === 'BLOCKED_CONTENT') return 'এই লেখায় এমন শব্দ আছে যা ব্যবহার করা যাবে না।';
   if (code === 'TEXT_TOO_LONG')
     return `সর্বোচ্চ ${toBanglaDigits(TEXT_LIMITS[field])} অক্ষর লেখা যাবে।`;
   return 'লেখাটি ঠিক করুন।';
@@ -67,7 +69,8 @@ export function PosterTextFields({
       : TEXT_FIELD_PLACEHOLDERS[field];
     const inputClass = cn(
       'h-auto rounded-xl border-slate-200 bg-white px-4 py-3 text-base shadow-sm placeholder:text-slate-300 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20',
-      error && 'border-red-400',
+      // Red wins over the green focus ring while the field has an error.
+      error && 'border-red-400 focus-visible:border-red-500 focus-visible:ring-red-500/20',
     );
 
     return (
@@ -124,4 +127,24 @@ export function PosterTextFields({
       )}
     </div>
   );
+}
+
+/**
+ * Puts a server-side field error (blocked content) on the field it names, so the red mark
+ * appears where the problem is. Returns true if it did.
+ */
+export function applyServerFieldError(
+  error: unknown,
+  setError: UseFormSetError<PosterTextForm>,
+): boolean {
+  if (!(error instanceof ApiError) || error.code !== 'BLOCKED_CONTENT') return false;
+  const field = error.details.field;
+  if (typeof field !== 'string' || !(TEXT_FIELDS as readonly string[]).includes(field))
+    return false;
+  setError(
+    field as TextField,
+    { type: 'server', message: 'BLOCKED_CONTENT' },
+    { shouldFocus: true },
+  );
+  return true;
 }

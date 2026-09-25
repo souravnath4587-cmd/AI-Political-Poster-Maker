@@ -62,6 +62,9 @@ const envSchema = z
     // Face detection: fast and reliable; the prompt keeps its boxes to the face only.
     GEMINI_VISION_MODEL: z.string().min(1).default('gemini-3.1-flash-lite'),
 
+    // Burst limits (middleware/rateLimits.ts). Off only in tests.
+    RATE_LIMITS_ENABLED: z.stringbool().default(true),
+
     // --- Auth ---
     SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
     // Secret mixed into one-time-code hashes. Required in production.

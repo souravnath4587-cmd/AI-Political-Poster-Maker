@@ -6,6 +6,8 @@ Object.assign(process.env, {
   // Replaced per test file by an in-memory server (see test/db.ts).
   MONGODB_URI: 'mongodb://127.0.0.1:1/unused',
   OTP_DEV_MODE: 'true',
+  // Tests make many requests from one IP; rateLimits.test.ts turns this back on.
+  RATE_LIMITS_ENABLED: 'false',
   REVIEWER_FREE_PHONE: '01999000001',
   REVIEWER_PREMIUM_PHONE: '01999000002',
   REVIEWER_CODE: '123456',

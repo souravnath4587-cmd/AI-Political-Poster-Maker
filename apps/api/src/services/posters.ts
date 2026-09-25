@@ -19,9 +19,10 @@ import { Template } from '../models/Template';
 import { Upload, type UploadDoc } from '../models/Upload';
 import { effectivePlan, type UserDoc } from '../models/User';
 import { buildPosterHtml, type PosterContent } from '../render/posterHtml';
+import { assertAllowedText } from './blocklist';
 import { withQuota } from './quota';
 import { renderPoster } from './render';
-import { signedImageUrl, storeImage, type StoredImage } from './storage';
+import { deleteImage, signedImageUrl, storeImage, type StoredImage } from './storage';
 
 interface TemplateRecord {
   _id: mongoose.Types.ObjectId;
@@ -176,6 +177,7 @@ export async function createPoster(
   user: UserDoc,
   input: { templateId: string; text: PosterText; photos: PosterPhotoIds },
 ): Promise<PosterDoc> {
+  assertAllowedText(input.text);
   const { doc: template, config } = await loadTemplate(input.templateId);
   const photos = await resolvePhotos(user, config, input.photos);
   const watermark = effectivePlan(user) === 'free';
@@ -225,6 +227,7 @@ export async function regeneratePoster(
   const poster = await findOwnPoster(user, posterId);
   const { config } = await loadTemplate(poster.templateId);
 
+  if (changes.text) assertAllowedText(changes.text);
   const text = changes.text ?? (poster.text as PosterText);
   const currentIds = Object.fromEntries(
     poster.photos.map((p) => [p.field, p.uploadId.toString()]),
@@ -337,4 +340,41 @@ export async function toPosterDto(poster: PosterDoc): Promise<PosterDto> {
     createdAt: new Date(poster.createdAt).toISOString(),
     updatedAt: new Date(poster.updatedAt).toISOString(),
   };
+}
+
+/**
+ * Deletes a poster, then (best effort) its rendered images and the source photos that no other
+ * poster of this user still uses (project-scope R8). Storage errors are logged, not returned:
+ * the poster is already gone for the user.
+ */
+export async function deletePoster(user: UserDoc, posterId: string): Promise<void> {
+  const poster = await findOwnPoster(user, posterId);
+  await Poster.deleteOne({ _id: poster._id, userId: user._id });
+
+  const publicIds: string[] = [];
+  if (poster.outputs?.social45) publicIds.push(poster.outputs.social45.publicId);
+  if (poster.outputs?.a3) publicIds.push(poster.outputs.a3.publicId);
+
+  const uploadIds = poster.photos.map((p) => p.uploadId);
+  const stillUsed = await Poster.distinct('photos.uploadId', {
+    userId: user._id,
+    'photos.uploadId': { $in: uploadIds },
+  });
+  const usedSet = new Set(stillUsed.map((id) => String(id)));
+  const unused = await Upload.find({
+    _id: { $in: uploadIds.filter((id) => !usedSet.has(id.toString())) },
+    userId: user._id,
+  }).lean<UploadDoc[]>();
+  publicIds.push(...unused.map((u) => u.publicId));
+  await Upload.deleteMany({ _id: { $in: unused.map((u) => u._id) } });
+
+  const results = await Promise.allSettled(publicIds.map((id) => deleteImage(id)));
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      logger.error(
+        { err: r.reason, publicId: publicIds[i] },
+        'Could not delete image from storage',
+      );
+    }
+  });
 }

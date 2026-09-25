@@ -11,6 +11,7 @@ import { HttpError } from '../lib/httpError';
 import { logger } from '../lib/logger';
 import { GenerationLog } from '../models/GenerationLog';
 import type { UserDoc } from '../models/User';
+import { findBlockedTerm } from './blocklist';
 import { generateJson, geminiConfigured } from './gemini';
 import { withQuota } from './quota';
 
@@ -113,7 +114,9 @@ export async function suggestHeadlines(
         minAttemptMs: 4_000,
       });
       model = result.model;
-      const suggestions = cleanHeadlines(responseSchema.parse(result.data).headlines);
+      const suggestions = cleanHeadlines(responseSchema.parse(result.data).headlines).filter(
+        (headline) => !findBlockedTerm(headline),
+      );
       if (suggestions.length === 0) throw new Error('No usable headlines in the response');
 
       void logCall(user, model, performance.now() - started, true);

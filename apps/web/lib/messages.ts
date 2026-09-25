@@ -47,6 +47,8 @@ export function errorMessage(error: unknown): string {
       return 'পোস্টার তৈরি করা যায়নি। আবার চেষ্টা করুন।';
     case 'TEMPLATE_NOT_FOUND':
       return 'টেমপ্লেটটি পাওয়া যায়নি। অন্য একটি বেছে নিন।';
+    case 'BLOCKED_CONTENT':
+      return 'লেখায় এমন শব্দ আছে যা ব্যবহার করা যাবে না। লাল চিহ্নিত ঘরটি ঠিক করুন।';
     case 'AI_UNAVAILABLE':
       return 'এই মুহূর্তে এআই পরামর্শ পাওয়া যাচ্ছে না। একটু পরে চেষ্টা করুন, বা নিজে লিখুন।';
     case 'POSTER_NOT_FOUND':
@@ -74,6 +76,12 @@ export function errorMessage(error: unknown): string {
       return 'অনেকবার ভুল কোড দেওয়া হয়েছে। নতুন কোড নিন।';
     case 'RATE_LIMITED': {
       const sec = typeof details.retryAfterSec === 'number' ? details.retryAfterSec : null;
+      // Burst limits on uploads, posters and suggestions (scope other than login codes).
+      if (typeof details.scope === 'string' && details.scope !== 'otp-request') {
+        return sec
+          ? `অনেক বেশি অনুরোধ হয়েছে। ${bn(sec)} সেকেন্ড পর আবার চেষ্টা করুন।`
+          : 'অনেক বেশি অনুরোধ হয়েছে। একটু পরে আবার চেষ্টা করুন।';
+      }
       return sec
         ? `একটু অপেক্ষা করুন। ${bn(sec)} সেকেন্ড পর আবার কোড চাইতে পারবেন।`
         : 'অনেক বেশি অনুরোধ। একটু পরে আবার চেষ্টা করুন।';

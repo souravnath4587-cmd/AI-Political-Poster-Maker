@@ -50,8 +50,9 @@ const posterSchema = new Schema(
   { timestamps: true },
 );
 
-// History page: a user's posters, newest first.
-posterSchema.index({ userId: 1, createdAt: -1 });
+// History page: a user's posters, newest first (ObjectIds grow with creation time, so they also
+// serve as the paging cursor).
+posterSchema.index({ userId: 1, _id: -1 });
 
 export type PosterDoc = InferSchemaType<typeof posterSchema> & { _id: mongoose.Types.ObjectId };
 export const Poster = mongoose.model('Poster', posterSchema);

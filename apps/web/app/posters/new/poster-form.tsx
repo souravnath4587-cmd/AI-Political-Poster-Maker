@@ -18,7 +18,11 @@ import { QuotaCard } from '@/components/quota-card';
 import { FormAlert } from '@/components/auth/form-alert';
 import { HeadlineSuggestions } from '@/components/poster/headline-suggestions';
 import { PhotoSlot } from '@/components/poster/photo-slot';
-import { PosterTextFields, type PosterTextForm } from '@/components/poster/poster-text-fields';
+import {
+  applyServerFieldError,
+  PosterTextFields,
+  type PosterTextForm,
+} from '@/components/poster/poster-text-fields';
 import { Button } from '@/components/ui/button';
 import { PHOTO_FIELD_LABELS } from '@/lib/labels';
 import { errorMessage } from '@/lib/messages';
@@ -123,7 +127,10 @@ export function PosterForm() {
         },
         {
           onSuccess: (poster) => router.push(`/posters/${poster.id}?new=1`),
-          onError: (err) => setFormError(errorMessage(err)),
+          onError: (err) => {
+            applyServerFieldError(err, form.setError);
+            setFormError(errorMessage(err));
+          },
         },
       );
     },

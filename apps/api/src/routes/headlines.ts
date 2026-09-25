@@ -10,6 +10,7 @@ import { HttpError } from '../lib/httpError';
 import { parseBody } from '../lib/validate';
 import { requireAuth } from '../middleware/auth';
 import { Template } from '../models/Template';
+import { assertAllowedText } from '../services/blocklist';
 import { suggestHeadlines } from '../services/headlines';
 import { getQuota } from '../services/quota';
 
@@ -18,6 +19,7 @@ export const headlinesRouter = Router();
 // POST /api/headlines/suggest { templateId, context? }
 headlinesRouter.post('/suggest', requireAuth, async (req, res) => {
   const { templateId, context } = parseBody(headlineSuggestSchema, req.body);
+  assertAllowedText(context);
   const template = mongoose.isValidObjectId(templateId)
     ? await Template.findOne(
         { _id: templateId, isActive: true },

@@ -6,6 +6,7 @@ import { isProduction } from './config/env';
 import { logger } from './lib/logger';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { originCheck } from './middleware/originCheck';
+import { createRateLimits } from './middleware/rateLimits';
 import { authRouter } from './routes/auth';
 import { devRouter } from './routes/dev';
 import { headlinesRouter } from './routes/headlines';
@@ -34,6 +35,13 @@ export function createApp() {
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
   app.use(originCheck);
+
+  const limits = createRateLimits();
+  app.use('/api/auth/otp/request', limits.otpRequest);
+  app.use('/api/auth/otp/verify', limits.otpVerify);
+  app.use('/api/upload', limits.upload);
+  app.use('/api/posters', limits.posterWrites);
+  app.use('/api/headlines', limits.headlines);
 
   app.use('/api/health', healthRouter);
   app.use('/api/auth', authRouter);

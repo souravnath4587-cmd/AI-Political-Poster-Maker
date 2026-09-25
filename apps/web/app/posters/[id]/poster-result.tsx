@@ -16,7 +16,11 @@ import {
 import { AppHeader } from '@/components/app-header';
 import { FormAlert } from '@/components/auth/form-alert';
 import { HeadlineSuggestions } from '@/components/poster/headline-suggestions';
-import { PosterTextFields, type PosterTextForm } from '@/components/poster/poster-text-fields';
+import {
+  applyServerFieldError,
+  PosterTextFields,
+  type PosterTextForm,
+} from '@/components/poster/poster-text-fields';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/messages';
 import { downloadPoster, usePoster, useRegeneratePoster, useTemplate } from '@/lib/posters';
@@ -175,7 +179,12 @@ function EditPanel({ poster, onDone }: { poster: PosterDto; onDone: () => void }
     );
   }
 
-  const onSubmit = form.handleSubmit((text) => regenerate.mutate({ text }, { onSuccess: onDone }));
+  const onSubmit = form.handleSubmit((text) =>
+    regenerate.mutate(
+      { text },
+      { onSuccess: onDone, onError: (err) => applyServerFieldError(err, form.setError) },
+    ),
+  );
 
   return (
     <form

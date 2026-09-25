@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   createPosterSchema,
   downloadQuerySchema,
+  posterListQuerySchema,
   regeneratePosterSchema,
   type PosterListResponse,
   type PosterResponse,
@@ -12,6 +13,7 @@ import { requireAuth } from '../middleware/auth';
 import { Poster, type PosterDoc } from '../models/Poster';
 import {
   createPoster,
+  deletePoster,
   ensureOutput,
   findOwnPoster,
   regeneratePoster,
@@ -30,15 +32,31 @@ postersRouter.post('/', async (req, res) => {
   res.status(201).json(body);
 });
 
-// GET /api/posters/me — the user's posters, newest first. (Declared before /:id.)
+// GET /api/posters/me?limit=20&before=<id> — the user's posters, newest first, in pages.
+// (Declared before /:id.)
 postersRouter.get('/me', async (req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 30, 100);
-  const posters = await Poster.find({ userId: req.auth!.userDoc._id, status: 'completed' })
-    .sort({ createdAt: -1 })
-    .limit(limit)
+  const { limit, before } = posterListQuerySchema.parse(req.query);
+  const posters = await Poster.find({
+    userId: req.auth!.userDoc._id,
+    status: 'completed',
+    ...(before ? { _id: { $lt: before } } : {}),
+  })
+    .sort({ _id: -1 })
+    .limit(limit + 1)
     .lean<PosterDoc[]>();
-  const body: PosterListResponse = { posters: await Promise.all(posters.map(toPosterDto)) };
+
+  const page = posters.slice(0, limit);
+  const body: PosterListResponse = {
+    posters: await Promise.all(page.map(toPosterDto)),
+    nextCursor: posters.length > limit ? page[page.length - 1]!._id.toString() : null,
+  };
   res.json(body);
+});
+
+// DELETE /api/posters/:id — the poster, its images and unused source photos.
+postersRouter.delete('/:id', async (req, res) => {
+  await deletePoster(req.auth!.userDoc, req.params.id);
+  res.status(204).end();
 });
 
 // GET /api/posters/:id — only the owner gets it; everyone else gets 404.

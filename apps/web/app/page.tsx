@@ -138,13 +138,20 @@ export default function Dashboard() {
 
         {/* History */}
         <section className="space-y-4" aria-labelledby="history-title">
-          <h2
-            id="history-title"
-            className="flex items-center gap-2 text-sm font-bold text-slate-900"
-          >
-            <History className="size-4 text-emerald-600" aria-hidden />
-            আপনার পোস্টার
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2
+              id="history-title"
+              className="flex items-center gap-2 text-sm font-bold text-slate-900"
+            >
+              <History className="size-4 text-emerald-600" aria-hidden />
+              আপনার পোস্টার
+            </h2>
+            {posters.data && posters.data.length > 0 && (
+              <Link href="/history" className="text-xs font-semibold text-emerald-700">
+                সবগুলো দেখুন
+              </Link>
+            )}
+          </div>
 
           {posters.data?.length === 0 && (
             <p className="rounded-2xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">

@@ -116,7 +116,17 @@ export interface PosterResponse {
 
 export interface PosterListResponse {
   posters: PosterDto[];
+  /** Pass as `before` to get the next (older) page; null when there are no more. */
+  nextCursor: string | null;
 }
+
+export const posterListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  before: z
+    .string()
+    .regex(/^[a-f0-9]{24}$/i)
+    .optional(),
+});
 
 export const POSTER_ERROR_CODES = [
   'TEMPLATE_NOT_FOUND',
