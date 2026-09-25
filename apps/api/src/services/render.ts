@@ -1,4 +1,4 @@
-import puppeteer, { type Browser } from 'puppeteer';
+import puppeteer, { type Browser, type LaunchOptions } from 'puppeteer';
 import sharp from 'sharp';
 import { OUTPUT_SIZES, type OutputSize } from '@app/shared';
 import { env } from '../config/env';
@@ -32,18 +32,36 @@ export class RenderError extends Error {
 const slots = new Semaphore(env.RENDER_CONCURRENCY);
 let browserPromise: Promise<Browser> | null = null;
 
+// Serverless Chromium for Vercel functions, where Puppeteer's own Chrome download isn't available.
+// If the bundled binary didn't make it into the function, the same build is fetched once per cold start.
+const SERVERLESS_CHROMIUM_PACK =
+  'https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar';
+
+async function launchOptions(): Promise<LaunchOptions> {
+  const common = [
+    '--disable-dev-shm-usage', // Docker's /dev/shm is tiny
+    '--font-render-hinting=none', // same glyph metrics on every OS
+  ];
+  if (!process.env.VERCEL) {
+    return {
+      headless: true,
+      args: [...common, ...(env.CHROME_NO_SANDBOX ? ['--no-sandbox', '--disable-setuid-sandbox'] : [])],
+    };
+  }
+
+  const { default: chromium } = await import('@sparticuz/chromium');
+  chromium.setGraphicsMode = false;
+  const executablePath = await chromium
+    .executablePath()
+    .catch(() => chromium.executablePath(SERVERLESS_CHROMIUM_PACK));
+  return { headless: true, executablePath, args: [...chromium.args, ...common] };
+}
+
 function getBrowser(): Promise<Browser> {
   if (browserPromise) return browserPromise;
 
-  const launching: Promise<Browser> = puppeteer
-    .launch({
-      headless: true,
-      args: [
-        '--disable-dev-shm-usage', // Docker's /dev/shm is tiny
-        '--font-render-hinting=none', // same glyph metrics on every OS
-        ...(env.CHROME_NO_SANDBOX ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
-      ],
-    })
+  const launching: Promise<Browser> = launchOptions()
+    .then((options) => puppeteer.launch(options))
     .then((browser) => {
       browser.on('disconnected', () => {
         // closeBrowser() clears browserPromise first, so this only fires on a crash.

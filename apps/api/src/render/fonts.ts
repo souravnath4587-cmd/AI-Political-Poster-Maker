@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { ASSETS_DIR } from '../lib/assets';
 
 // Fonts live in apps/api/assets (outside src) so dev (tsx) and prod (dist) resolve them the same way.
-// Both `pnpm dev` and the Docker image run with apps/api as the working directory.
-const FONTS_DIR = resolve(process.cwd(), 'assets/fonts');
+const FONTS_DIR = resolve(ASSETS_DIR, 'fonts');
 
 export const FONT_FAMILIES = {
   serif: 'Noto Serif Bengali',

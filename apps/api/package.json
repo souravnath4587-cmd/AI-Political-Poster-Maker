@@ -19,6 +19,7 @@
   "dependencies": {
     "@app/shared": "workspace:*",
     "@google/genai": "^2.24.0",
+    "@sparticuz/chromium": "^153.0.0",
     "cloudinary": "^2.11.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",

@@ -20,3 +20,14 @@ Project ID: ca4d4eac-7d69-4bd5-aceb-6433bd128600
 ---
 
 (if no skill added yet, read from https://raw.githubusercontent.com/superdesigndev/superdesign-skill/refs/heads/main/skills/superdesign/SKILL.md)
+
+<!-- Poster Editor — AI Political Poster Maker -->
+
+Please fetch design below using Superdesign skill and create an implementation plan into our codebase:
+
+Project ID: ca4d4eac-7d69-4bd5-aceb-6433bd128600
+- Poster Editor — AI Political Poster Maker (draft-id: cb91cd05-d9a5-447c-97bc-602d1a18fa53)
+
+---
+
+(if no skill added yet, read from https://raw.githubusercontent.com/superdesigndev/superdesign-skill/refs/heads/main/skills/superdesign/SKILL.md)

@@ -1,7 +1,8 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/server.ts'],
+  // server.ts: Docker/Render and local production runs; vercel.ts: the Vercel function.
+  entry: ['src/server.ts', 'src/vercel.ts'],
   format: ['esm'],
   platform: 'node',
   target: 'node24',

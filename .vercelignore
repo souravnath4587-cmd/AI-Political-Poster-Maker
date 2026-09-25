@@ -1,0 +1,11 @@
+# CLI deploys upload the repo root (monorepo); never send local secrets or build output.
+node_modules
+.env
+.env.*
+!.env.example
+.data
+dist
+.next
+coverage
+*.tsbuildinfo
+apps/api/_walkthrough.mjs

@@ -7,12 +7,13 @@ import {
   templateRequirements,
   type TemplateSummary,
 } from '@app/shared';
+import { ASSETS_DIR } from '../lib/assets';
 import { HttpError } from '../lib/httpError';
 import { Template } from '../models/Template';
 
 export const templatesRouter = Router();
 
-const THUMBNAILS_DIR = resolve(process.cwd(), 'assets/thumbnails');
+const THUMBNAILS_DIR = resolve(ASSETS_DIR, 'thumbnails');
 
 type TemplateRecord = {
   _id: mongoose.Types.ObjectId;
