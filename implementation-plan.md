@@ -1,4 +1,4 @@
-# ✅ |✅ |✅ |⏸ |✅ |✅ |Implementation Plan — AI Political Poster Maker
+# Implementation Plan — AI Political Poster Maker
 
 > Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 3).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
@@ -21,8 +21,10 @@
 | 0 — Foundation | ✅ Done locally. Deploy (0.6) deferred to 4.5; SMS signup (0.7) not started. | `f40807c` |
 | 1 — Render pipeline | ✅ Done locally: conjuncts correct, A3 3508×4961 @300 DPI in ~2 s, 4:5 in ~0.6 s, no leaked pages. Not yet measured on Render (4.5). | `ad3f941` |
 | 2 — Templates | ✅ 2 templates (বিজয় দিবস, শোক/স্মরণ) × 2 sizes, 1- and 2-leader variants, seeded to Atlas, `GET /api/templates`, 25 tests. AI backgrounds (2.3) waiting for a Gemini key; CSS gradients used meanwhile. | `0604018` |
-| 3 — Auth | ✅ Phone + one-time code, DB sessions (hashed token, httpOnly cookie, sliding expiry), Origin check, reviewer free/premium logins, `/login` from the Superdesign draft with its fixes, 61 tests + browser run at 390 px. | uncommitted |
-| 4–10 | Not started | |
+| 3 — Auth | ✅ Phone + one-time code, DB sessions (hashed token, httpOnly cookie, sliding expiry), Origin check, reviewer free/premium logins, `/login` from the Superdesign draft with its fixes, 61 tests + browser run at 390 px. | `a95009b` |
+| 4–10 | Not started. **Next: Phase 4** (uploads, face crop, API deploy to Render). | |
+
+**Waiting for review:** the *Expanded Template Library — Dashboard* Superdesign draft (`6a21b930`, listed in `design-prompt.md`) is to be fetched and checked against the scope before task 5.6 (template picker), the same way the login draft was.
 
 **Decisions made while building (not in the original plan):**
 - **Localhost first.** Deploying to Render/Vercel is postponed. `pnpm dev` starts db + api + web; a local MongoDB (the `mongodb-memory-server` binary) starts only when `MONGODB_URI` points at localhost. Atlas is configured in `apps/api/.env`.
@@ -40,7 +42,7 @@
 
 | | Hours |
 |---|---|
-| P0 tasks | ~27 h (~7 h done) |
+| P0 tasks | ~27 h (~13 h done) |
 | P0 + P1 | ~42 h |
 | All (incl. P2) | ~43 h |
 
