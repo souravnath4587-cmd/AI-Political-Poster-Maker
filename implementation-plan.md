@@ -1,6 +1,6 @@
 # ✅ |✅ |✅ |⏸ |✅ |✅ |Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 2).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 3).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -20,8 +20,9 @@
 |---|---|---|
 | 0 — Foundation | ✅ Done locally. Deploy (0.6) deferred to 4.5; SMS signup (0.7) not started. | `f40807c` |
 | 1 — Render pipeline | ✅ Done locally: conjuncts correct, A3 3508×4961 @300 DPI in ~2 s, 4:5 in ~0.6 s, no leaked pages. Not yet measured on Render (4.5). | `ad3f941` |
-| 2 — Templates | ✅ 2 templates (বিজয় দিবস, শোক/স্মরণ) × 2 sizes, 1- and 2-leader variants, seeded to Atlas, `GET /api/templates`, 25 tests. AI backgrounds (2.3) waiting for a Gemini key; CSS gradients used meanwhile. | uncommitted |
-| 3–10 | Not started | |
+| 2 — Templates | ✅ 2 templates (বিজয় দিবস, শোক/স্মরণ) × 2 sizes, 1- and 2-leader variants, seeded to Atlas, `GET /api/templates`, 25 tests. AI backgrounds (2.3) waiting for a Gemini key; CSS gradients used meanwhile. | `0604018` |
+| 3 — Auth | ✅ Phone + one-time code, DB sessions (hashed token, httpOnly cookie, sliding expiry), Origin check, reviewer free/premium logins, `/login` from the Superdesign draft with its fixes, 61 tests + browser run at 390 px. | uncommitted |
+| 4–10 | Not started | |
 
 **Decisions made while building (not in the original plan):**
 - **Localhost first.** Deploying to Render/Vercel is postponed. `pnpm dev` starts db + api + web; a local MongoDB (the `mongodb-memory-server` binary) starts only when `MONGODB_URI` points at localhost. Atlas is configured in `apps/api/.env`.
@@ -31,6 +32,8 @@
 - **Fonts** live in `apps/api/assets/fonts` and are inlined as data URIs; a render fails if a required font doesn't load.
 - **Template thumbnails** are rendered by `pnpm --filter @app/api templates:thumbnails` into `apps/api/assets/thumbnails` (committed) and served at `/api/templates/thumbnails/<slug>.webp`, so the template picker doesn't depend on Cloudinary.
 - **Text fitting measures lines × line-height**, not `scrollHeight`: Bangla glyph areas are taller than a tight line-height and caused false overflow.
+- **Login options come from the API** (`GET /api/auth/options`: reviewer numbers, dev mode) instead of a `NEXT_PUBLIC_SHOW_REVIEWER_ACCESS` flag, so the API env is the single switch.
+- **Reviewer logins:** `01999000001` (free) and `01999000002` (premium), code `123456`, seeded by `pnpm --filter @app/api seed:users`.
 - **Login UI** follows the Superdesign draft *Auth Screen with Navigation and Smooth Transitions* (`aa8ce61d-ceae-4d3e-8d35-065c1c2eb587`, v3) with the fixes listed under Phase 3.
 
 ## Time budget
@@ -90,7 +93,7 @@ Goal: the two templates exist in the database and render from data, not hard-cod
 | 2.5 | `scripts/seed-templates.ts`; `GET /api/templates` (filter by occasion) and `GET /api/templates/:id` | 30m | P0 | ✅ | Seed runs twice without duplicates; endpoints return 2 templates |
 | 2.6 | Tests: `layoutConfig` accepts both seeded templates and rejects malformed ones | 20m | P1 | ✅ | `pnpm test` green |
 
-## Phase 3 — Auth with database sessions (~6 h) · Day 1
+## Phase 3 — Auth with database sessions (~6 h) · Day 1 ✅
 
 Goal: phone + one-time code login, opaque session cookie, sessions stored in MongoDB (`tech-stack.md` §4), and a login screen based on the Superdesign draft.
 
@@ -111,18 +114,18 @@ Kept from the draft: dark navy header with shield icon and "সুরক্ষ�
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 3.1 | `User` model: `phone` (unique), `isVerified`, `role`, `plan`, `planExpiresAt`, `acceptedTermsAt` | 20m | P0 | | Indexes created |
-| 3.2 | `OtpCode` and `Session` models with TTL indexes; `Session.tokenHash` unique, `userId` indexed | 30m | P0 | | Indexes visible in Atlas |
-| 3.3 | `SmsProvider` interface + `ConsoleSmsProvider`; OTP service: 6-digit `randomInt` code, SHA-256 + pepper, 5-min expiry, max 5 attempts, `timingSafeEqual`; reviewer free/premium phones + fixed 6-digit code from env | 60m | P0 | | Code appears in the console; wrong code 5× invalidates it |
-| 3.4 | Session service: `create` (32-byte token, store hash), `validate` (checks `expiresAt > now`), sliding refresh throttled to once per 24 h, `destroy`, `destroyAllForUser` | 45m | P0 | | Unit tests for create/validate/expire pass |
-| 3.5 | Routes: `otp/request` → `{ isNewUser, resendAfterSec, devCode? }`; `otp/verify` (upsert user, require terms when `isNewUser`, new session every login); `logout`; `me`. Errors as codes (`INVALID_PHONE`, `CODE_INVALID`, `CODE_EXPIRED`, `TOO_MANY_ATTEMPTS`, `RATE_LIMITED`, `TERMS_REQUIRED`). Cookie `HttpOnly; Secure; SameSite=Lax`; `trust proxy` | 45m | P0 | | Login through `localhost:3000` sets the cookie; `/me` returns the user |
-| 3.6 | Middleware: `requireAuth` (loads user, applies premium expiry), `requireAdmin`, `originCheck` for non-GET requests | 30m | P0 | | Protected route without cookie → 401; wrong Origin → 403 |
-| 3.7 | Web login components (from the draft): `AuthHeader`, `PhoneInput` (`+৮৮০` prefix, Bangla digits → ASCII, `1[3-9]XXXXXXXX` check), `OtpInput` (shadcn `InputOTP`, 6 boxes, paste, `autocomplete="one-time-code"`, numeric keyboard), `ResendTimer`, `ErrorAlert`; error code → Bangla message map | 45m | P0 | | Components render at 360 px and 390 px width with no overflow |
-| 3.8 | Web login page `/login`: phone step → code step with fade, terms checkbox for new users, loading states, `useMe()` hook, redirect guard for protected pages, logout | 60m | P0 | | Full login and logout in the browser on mobile width |
-| 3.9 | `ReviewerAccessCard`: free + premium test numbers with "ব্যবহার করুন", dev-code toggle showing `devCode`; hidden unless `NEXT_PUBLIC_SHOW_REVIEWER_ACCESS=true` | 30m | P0 | | A reviewer logs in as free and as premium using only what's on screen |
-| 3.10 | `scripts/seed-users.ts`: reviewer **free** and **premium** accounts | 15m | P0 | | Both accounts log in with their test numbers |
-| 3.11 | `POST /api/auth/logout-all` | 15m | P2 | | All sessions for the user deleted |
-| 3.12 | Tests: OTP expiry/attempts/reviewer code; session cookie, expired or deleted session → 401 | 45m | P1 | | `pnpm test` green |
+| 3.1 | `User` model: `phone` (unique), `isVerified`, `role`, `plan`, `planExpiresAt`, `acceptedTermsAt` | 20m | P0 | ✅ | Indexes created |
+| 3.2 | `OtpCode` and `Session` models with TTL indexes; `Session.tokenHash` unique, `userId` indexed | 30m | P0 | ✅ | Indexes visible in Atlas |
+| 3.3 | `SmsProvider` interface + `ConsoleSmsProvider`; OTP service: 6-digit `randomInt` code, SHA-256 + pepper, 5-min expiry, max 5 attempts, `timingSafeEqual`; reviewer free/premium phones + fixed 6-digit code from env | 60m | P0 | ✅ | Code appears in the console; wrong code 5× invalidates it |
+| 3.4 | Session service: `create` (32-byte token, store hash), `validate` (checks `expiresAt > now`), sliding refresh throttled to once per 24 h, `destroy`, `destroyAllForUser` | 45m | P0 | ✅ | Unit tests for create/validate/expire pass |
+| 3.5 | Routes: `otp/request` → `{ isNewUser, resendAfterSec, devCode? }`; `otp/verify` (upsert user, require terms when `isNewUser`, new session every login); `logout`; `me`. Errors as codes (`INVALID_PHONE`, `CODE_INVALID`, `CODE_EXPIRED`, `TOO_MANY_ATTEMPTS`, `RATE_LIMITED`, `TERMS_REQUIRED`). Cookie `HttpOnly; Secure; SameSite=Lax`; `trust proxy` | 45m | P0 | ✅ | Login through `localhost:3000` sets the cookie; `/me` returns the user |
+| 3.6 | Middleware: `requireAuth` (loads user, applies premium expiry), `requireAdmin`, `originCheck` for non-GET requests | 30m | P0 | ✅ | Protected route without cookie → 401; wrong Origin → 403 |
+| 3.7 | Web login components (from the draft): `AuthHeader`, `PhoneInput` (`+৮৮০` prefix, Bangla digits → ASCII, `1[3-9]XXXXXXXX` check), `OtpInput` (shadcn `InputOTP`, 6 boxes, paste, `autocomplete="one-time-code"`, numeric keyboard), `ResendTimer`, `ErrorAlert`; error code → Bangla message map | 45m | P0 | ✅ | Components render at 360 px and 390 px width with no overflow |
+| 3.8 | Web login page `/login`: phone step → code step with fade, terms checkbox for new users, loading states, `useMe()` hook, redirect guard for protected pages, logout | 60m | P0 | ✅ | Full login and logout in the browser on mobile width |
+| 3.9 | `ReviewerAccessCard`: free + premium test numbers with "ব্যবহার করুন", dev-code toggle showing `devCode`; hidden unless `NEXT_PUBLIC_SHOW_REVIEWER_ACCESS=true` | 30m | P0 | ✅ | A reviewer logs in as free and as premium using only what's on screen |
+| 3.10 | `scripts/seed-users.ts`: reviewer **free** and **premium** accounts | 15m | P0 | ✅ | Both accounts log in with their test numbers |
+| 3.11 | `POST /api/auth/logout-all` | 15m | P2 | ✅ | All sessions for the user deleted |
+| 3.12 | Tests: OTP expiry/attempts/reviewer code; session cookie, expired or deleted session → 401 | 45m | P1 | ✅ | `pnpm test` green |
 
 ## Phase 4 — Uploads, face-aware crop & first deploy (~3.5 h) · Day 1 evening
 

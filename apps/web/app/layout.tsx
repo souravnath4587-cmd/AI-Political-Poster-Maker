@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Hind_Siliguri, Noto_Serif_Bengali } from 'next/font/google';
 import { cn } from '@/lib/utils';
+import { Providers } from './providers';
 import './globals.css';
 
 const hindSiliguri = Hind_Siliguri({
@@ -30,7 +31,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       lang="bn"
       className={cn('h-full antialiased', hindSiliguri.variable, notoSerifBengali.variable)}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

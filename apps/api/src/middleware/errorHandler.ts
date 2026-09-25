@@ -8,7 +8,15 @@ export const notFound: RequestHandler = (_req, _res, next) => {
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof HttpError) {
-    res.status(err.status).json({ error: { code: err.code, message: err.message } });
+    res
+      .status(err.status)
+      .json({ error: { code: err.code, message: err.message, ...err.details } });
+    return;
+  }
+
+  // Malformed JSON or an oversized body, from express.json().
+  if (typeof err?.status === 'number' && err.status >= 400 && err.status < 500 && err.type) {
+    res.status(err.status).json({ error: { code: 'BAD_REQUEST', message: 'Malformed request' } });
     return;
   }
 
