@@ -94,7 +94,7 @@ uploadRouter.post('/', requireAuth, receivePhoto, async (req, res) => {
       userId: user._id,
       uploadId: doc._id,
       stage: 'face-crop',
-      model: env.GEMINI_MODEL,
+      model: detection.model ?? env.GEMINI_VISION_MODEL,
       latencyMs: detection.latencyMs,
       success: !detection.error,
       error: detection.error ?? null,

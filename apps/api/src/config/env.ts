@@ -56,7 +56,11 @@ const envSchema = z
     // Optional: without a key, photos get the default crop and headline suggestions are off.
     GEMINI_API_KEY: z.string().min(1).optional(),
     // Check the current model list when changing this; names change often.
-    GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
+    // Text (headline suggestions) and the fallback for face detection. gemini-2.5-flash is closed
+    // to new API keys (404 "no longer available to new users").
+    GEMINI_MODEL: z.string().min(1).default('gemini-3.8-flash'),
+    // Face detection: fast and reliable; the prompt keeps its boxes to the face only.
+    GEMINI_VISION_MODEL: z.string().min(1).default('gemini-3.1-flash-lite'),
 
     // --- Auth ---
     SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
