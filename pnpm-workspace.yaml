@@ -4,8 +4,10 @@ packages:
 
 # Packages allowed to run install scripts (pnpm 11 blocks them by default).
 allowBuilds:
+  '@google/genai': false
   esbuild: true
   mongodb-memory-server: false
+  protobufjs: false
   puppeteer: true
   sharp: true
   unrs-resolver: false

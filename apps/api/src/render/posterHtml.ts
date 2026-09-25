@@ -1,6 +1,7 @@
 import { PHOTO_FIELDS } from '@app/shared';
 import type {
   Box,
+  FocusPoint,
   LayoutConfig,
   OutputSize,
   PhotoElement,
@@ -15,8 +16,35 @@ import { FONT_FAMILIES, fontFaceCss } from './fonts';
 
 export interface PosterPhoto {
   url: string;
-  /** Point to keep in view when cropping (percent, from face detection); default is the center. */
-  focus?: { x: number; y: number };
+  /** Pixel size; with it, `focus` is centered in the frame exactly. */
+  width?: number;
+  height?: number;
+  /** Point to center in the frame (percent of the photo, e.g. the detected face). */
+  focus?: FocusPoint;
+}
+
+/**
+ * CSS object-position that puts `focus` in the middle of a `box.w × box.h` frame with
+ * object-fit: cover. object-position p% aligns the photo's p% point with the frame's p% point,
+ * so the value that centers a point has to be solved for per axis; it's clamped so the photo
+ * still covers the frame.
+ */
+export function coverPosition(
+  focus: FocusPoint,
+  photo: { width: number; height: number },
+  box: { w: number; h: number },
+): FocusPoint {
+  const scale = Math.max(box.w / photo.width, box.h / photo.height);
+  const axis = (focusPct: number, scaled: number, frame: number) => {
+    const overflow = scaled - frame;
+    if (overflow <= 0.001) return 50;
+    const p = ((focusPct / 100) * scaled - frame / 2) / overflow;
+    return Math.round(Math.min(1, Math.max(0, p)) * 1000) / 10;
+  };
+  return {
+    x: axis(focus.x, photo.width * scale, box.w),
+    y: axis(focus.y, photo.height * scale, box.h),
+  };
 }
 
 export interface PosterContent {
@@ -112,6 +140,11 @@ export function buildPosterHtml(
     if (!photo && el.optional) return '';
     const url = photo?.url ?? PHOTO_PLACEHOLDER;
     const focus = photo?.focus ?? { x: 50, y: 50 };
+    // Without the photo's size, fall back to using the focus point as the position directly.
+    const position =
+      photo?.width && photo.height
+        ? coverPosition(focus, { width: photo.width, height: photo.height }, el.box)
+        : focus;
     const radius = el.shape === 'circle' ? '50%' : el.shape === 'rounded' ? '8%' : '0';
     const border = el.border
       ? `border:${vw(el.border.width)} solid var(--c-${el.border.color});`
@@ -119,7 +152,7 @@ export function buildPosterHtml(
     const shadow = el.shadow ? 'box-shadow:0 1vw 3vw rgba(0,0,0,.45);' : '';
     return (
       `<div class="el photo" data-el="${el.id}" style="${boxCss(el.box)}border-radius:${radius};${border}${shadow}">` +
-      `<img src="${escapeHtml(url)}" alt="" style="object-fit:${el.fit};object-position:${focus.x}% ${focus.y}%;"></div>`
+      `<img src="${escapeHtml(url)}" alt="" style="object-fit:${el.fit};object-position:${position.x}% ${position.y}%;"></div>`
     );
   };
 

@@ -2,7 +2,37 @@ import { describe, expect, it } from 'vitest';
 import { layoutConfigSchema } from '@app/shared';
 import { SAMPLE_CONTENT, TEMPLATE_SEEDS } from '../templates';
 import { escapeHtml } from '../lib/html';
-import { buildPosterHtml, PHOTO_PLACEHOLDER } from './posterHtml';
+import { buildPosterHtml, coverPosition, PHOTO_PLACEHOLDER } from './posterHtml';
+
+describe('coverPosition', () => {
+  const square = { w: 20, h: 20 };
+
+  it('centers the focus point of a landscape photo in a square frame', () => {
+    // 2000×1000 in a square: the photo is twice as wide as the frame, so x can move.
+    expect(coverPosition({ x: 50, y: 50 }, { width: 2000, height: 1000 }, square)).toEqual({
+      x: 50,
+      y: 50,
+    });
+    // A face at 25% of the width: p = (0.25·2 − 0.5) / (2 − 1) = 0 → left edge.
+    expect(coverPosition({ x: 25, y: 50 }, { width: 2000, height: 1000 }, square).x).toBe(0);
+    // A face at 60%: p = (1.2 − 0.5) / 1 = 0.7.
+    expect(coverPosition({ x: 60, y: 50 }, { width: 2000, height: 1000 }, square).x).toBe(70);
+  });
+
+  it('moves a portrait photo up to a face near the top, without leaving a gap', () => {
+    // 1000×1500: y can move. A face at 30%: p = (0.45 − 0.5) / 0.5 = −0.1 → clamped to 0.
+    expect(coverPosition({ x: 50, y: 30 }, { width: 1000, height: 1500 }, square).y).toBe(0);
+    // A face at 45%: p = (0.675 − 0.5) / 0.5 = 0.35.
+    expect(coverPosition({ x: 50, y: 45 }, { width: 1000, height: 1500 }, square).y).toBe(35);
+  });
+
+  it('keeps 50% on an axis with nothing to crop', () => {
+    expect(coverPosition({ x: 10, y: 90 }, { width: 1000, height: 1000 }, square)).toEqual({
+      x: 50,
+      y: 50,
+    });
+  });
+});
 
 const victory = layoutConfigSchema.parse(
   TEMPLATE_SEEDS.find((s) => s.slug === 'victory-day-classic')!.layoutConfig,

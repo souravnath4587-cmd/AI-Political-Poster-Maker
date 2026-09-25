@@ -52,6 +52,12 @@ const envSchema = z
     // Needed in containers without user namespaces (Render). Safe here: pages only load our own HTML.
     CHROME_NO_SANDBOX: z.stringbool().default(false),
 
+    // --- Gemini ---
+    // Optional: without a key, photos get the default crop and headline suggestions are off.
+    GEMINI_API_KEY: z.string().min(1).optional(),
+    // Check the current model list when changing this; names change often.
+    GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
+
     // --- Auth ---
     SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
     // Secret mixed into one-time-code hashes. Required in production.

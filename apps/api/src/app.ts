@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth';
 import { devRouter } from './routes/dev';
 import { healthRouter } from './routes/health';
 import { templatesRouter } from './routes/templates';
+import { uploadRouter } from './routes/upload';
 
 export function createApp() {
   const app = express();
@@ -34,6 +35,7 @@ export function createApp() {
   app.use('/api/health', healthRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/templates', templatesRouter);
+  app.use('/api/upload', uploadRouter);
   if (!isProduction) app.use('/api/dev', devRouter);
 
   app.use(notFound);
