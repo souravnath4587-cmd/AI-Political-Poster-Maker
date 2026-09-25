@@ -1,6 +1,6 @@
 # Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 7).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 8).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -20,58 +20,77 @@
 |---|---|---|
 | 0 — Foundation | ✅ Done locally. Deploy (0.6) deferred to 4.5; SMS signup (0.7) not started. | `f40807c` |
 | 1 — Render pipeline | ✅ Done locally: conjuncts correct, A3 3508×4961 @300 DPI in ~2 s, 4:5 in ~0.6 s, no leaked pages. Not yet measured on Render (4.5). | `ad3f941` |
-| 2 — Templates | ✅ 2 templates (বিজয় দিবস, শোক/স্মরণ) × 2 sizes, 1- and 2-leader variants, seeded to Atlas, `GET /api/templates`, 25 tests. AI backgrounds (2.3) waiting for a Gemini key; CSS gradients used meanwhile. | `0604018` |
+| 2 — Templates | ✅ 2 templates (বিজয় দিবস, শোক/স্মরণ) × 2 sizes, 1- and 2-leader variants, seeded to Atlas, `GET /api/templates`, 25 tests. AI backgrounds (2.3) not done; CSS gradients in use (the Gemini key is now set, so 2.3 is unblocked). | `0604018` |
 | 3 — Auth | ✅ Phone + one-time code, DB sessions (hashed token, httpOnly cookie, sliding expiry), Origin check, reviewer free/premium logins, `/login` from the Superdesign draft with its fixes, 61 tests + browser run at 390 px. | `a95009b` |
 | 4 — Uploads | 4.1–4.3 ✅: `POST /api/upload` (sharp: real-format check, EXIF rotation, metadata stripped, size rules + low-res warning), private Cloudinary storage with signed URLs (unsigned/altered → 401), verified against the real account; Chromium renders the private photos. 4.4 ✅ face detection verified with the real key: `gemini-3.1-flash-lite` (prompt limited to the face, “do not guess”, confidence ≥ 0.6) with `gemini-3.8-flash` as busy fallback, 10 s budget, default crop on any failure. 4.5 deploy waiting for a decision. 76 tests. | `d4aeb87`, `1388a30` |
 | 5 — Generation | ✅ **Minimum demo works on localhost**, verified end to end in headless Chrome at 390 px: login → dashboard → form (validation, 3 uploads in ~5 s with face detection) → poster in ~7 s → A3 download 3508×4961 @300 DPI (~19 s first time) → edit + regenerate → history. API: create/read/list/download/regenerate with owner-only access, photo ownership + kind checks, watermark for free users, A3 rendered on first download and cached, `?format=json` download links; 57 API tests. Web: dashboard, poster form (photo slots with progress, face badge, low-res warning), result page with downloads and text editing. | `b426595` |
 | 6 — Quotas | ✅ Free 3 posters + 2 regenerations/day, premium 10 + 5, reset at Dhaka midnight (18:00 UTC). Counter created first, then one conditional `$inc` below the limit (no race on the first request of the day); reserve-then-refund around render/save, so failed renders and invalid input cost nothing; re-downloads free. `GET /api/quota`; quota card on dashboard, form (submit blocked at the limit) and result page. 83 tests incl. 5 and 6 parallel requests. | `6e9a6f6` |
 | 7 — Headlines | ✅ `POST /api/headlines/suggest`: 3–5 short Bangla headlines per occasion, using what the user typed (organization, area, names); party-neutral, respectful, no anniversary numbers; cleaned (Bangla only, ≤ 60 chars, no duplicates). 20/day per user through the Phase 6 quota system, refunded on failure; logged. Web: “এআই পরামর্শ” chips under the headline on the form and the edit panel. Real Gemini: 5 suggestions in ~2–3 s. 109 tests. | `8c4e924` |
-| 8–10 | Not started. **Next: Phase 8** (history & guardrails). | |
+| 8 — History & guardrails | ✅ History page with paging (`?before=` cursor), A3/4:5 downloads and in-card delete confirmation; `DELETE /api/posters/:id` removes the poster, its images and source photos no other poster uses. Rate limits (in-memory, per IP / phone / session) on login codes, code checks, uploads, poster writes and suggestions. Keyword blocklist on poster text, suggestion context and suggestions; the form marks the field. Terms page finalized. 132 tests; checked in the browser. | `153119d` |
+| 9 — Polish | Not started. **Next.** | |
+| 10 — Ship & submit | Not started | |
 
-**Open decisions:**
-- **Gemini key:** ✅ set. Face detection (4.4) is on; AI backgrounds (2.3) and headline suggestions (Phase 7) can now use it.
-- **Render deploy (4.5):** deploy the API now to measure A3 rendering within the free tier's 512 MB, or wait until Phase 10 and accept that risk. The user prefers localhost for now.
+**Open decisions and follow-ups:**
+- **Render deploy (4.5):** deploy the API now to measure A3 rendering within the free tier's 512 MB, or wait until Phase 10 and accept that risk. The user prefers localhost for now. This is the last open P0 item before shipping.
+- **Blocklist review:** the starting list in `apps/api/src/services/blocklist.ts` needs the owner's review (project-scope open question 2).
+- **Test data:** the free reviewer account (01999000001) still has test posters and uploads from the end-to-end runs; delete them before reviewers see the account.
+- **Flaky test run:** one workspace test run failed once and couldn't be reproduced in 5 later runs (output not captured); likely memory pressure on the dev machine. If it recurs, capture the output.
+- **Gemini key:** ✅ set. Face detection and headline suggestions use it; AI backgrounds (2.3) could now be done.
 
 **Dashboard, form and result designs** (Superdesign drafts `6a21b930`, `cb91cd05`, `d9ba6cf1`) were reviewed against the scope and built with these changes:
-- Dashboard: only the real templates from the API, with their rendered 4:5 thumbnails in a 2-column grid (not 5 categories with stock photos); neutral “স্বাগতম” greeting with plan badge; premium banner for free users marked “শীঘ্রই আসছে” (premium is 10/day, not unlimited); history from `GET /api/posters/me` with an empty state; no reviewer footer or “V0.5 DRAFT” badge; quota card deferred to Phase 6.
+- Dashboard: only the real templates from the API, with their rendered 4:5 thumbnails in a 2-column grid (not 5 categories with stock photos); neutral “স্বাগতম” greeting with plan badge; premium banner for free users marked “শীঘ্রই আসছে” (premium is 10/day, not unlimited); history from `GET /api/posters/me` with an empty state; no reviewer footer or “V0.5 DRAFT” badge; quota card added in Phase 6.
 - Form: template chosen on the dashboard (shown compact with “পরিবর্তন করুন”), leader name fields added in a collapsible section, no separate preview step.
 - Result page: no project name or public/private switch (public sharing is out of scope); A3 and 4:5 downloads plus text editing instead.
 
 **Decisions made while building (not in the original plan):**
+
+*Setup and development*
 - **Localhost first.** Deploying to Render/Vercel is postponed. `pnpm dev` starts db + api + web; a local MongoDB (the `mongodb-memory-server` binary) starts only when `MONGODB_URI` points at localhost. Atlas is configured in `apps/api/.env`.
 - **`DNS_SERVERS`** (optional env): Node on this machine can't resolve `mongodb+srv://` through the local DNS proxy (`querySrv ECONNREFUSED`), so it's set to `8.8.8.8,1.1.1.1`.
 - **API dev runs on `node --watch --import tsx`**. `tsx watch` hung silently under `concurrently` on Windows.
+- **Dev servers:** if `pnpm dev` is stopped abruptly, `next dev` can be left running and holding port 3000; the next `pnpm dev` then silently serves from the old process. Stop leftover `node` processes before restarting.
+- **API tests run in worker threads, 2 at a time:** with child processes, Node on Windows sometimes aborted at process exit (0xC0000409, a libuv handle-closing assertion), and each file starts its own MongoDB.
 - **Docker base** is `node:24-slim` + Chrome via `puppeteer browsers install chrome --install-deps` (keeps Chrome matched to the locked Puppeteer version).
+
+*Rendering and templates*
 - **Fonts** live in `apps/api/assets/fonts` and are inlined as data URIs; a render fails if a required font doesn't load.
-- **Template thumbnails** are rendered by `pnpm --filter @app/api templates:thumbnails` into `apps/api/assets/thumbnails` (committed) and served at `/api/templates/thumbnails/<slug>.webp`, so the template picker doesn't depend on Cloudinary.
 - **Text fitting measures lines × line-height**, not `scrollHeight`: Bangla glyph areas are taller than a tight line-height and caused false overflow.
+- **Template thumbnails** are rendered by `pnpm --filter @app/api templates:thumbnails` into `apps/api/assets/thumbnails` (committed) and served at `/api/templates/thumbnails/<slug>.webp`, so the template picker doesn't depend on Cloudinary.
+
+*Login*
+- **Login UI** follows the Superdesign draft *Auth Screen with Navigation and Smooth Transitions* (`aa8ce61d-ceae-4d3e-8d35-065c1c2eb587`, v3) with the fixes listed under Phase 3.
 - **Login options come from the API** (`GET /api/auth/options`: reviewer numbers, dev mode) instead of a `NEXT_PUBLIC_SHOW_REVIEWER_ACCESS` flag, so the API env is the single switch.
 - **Reviewer logins:** `01999000001` (free) and `01999000002` (premium), code `123456`, seeded by `pnpm --filter @app/api seed:users`.
-- **Gemini models:** `gemini-2.5-flash` is closed to new API keys (404), and `gemini-3.8-flash` often answers 503 “high demand”. Face detection therefore uses `GEMINI_VISION_MODEL=gemini-3.1-flash-lite` (≈3 s, reliable) and falls back to `GEMINI_MODEL=gemini-3.8-flash`, which stays the model for Bangla headline text.
-- **Face crop fallback:** when Gemini is busy, the default center crop is used; for photos with the person far off-center this can frame the background. A manual “move the crop” control would fix it (possible improvement, not planned).
-- **Dev servers:** if `pnpm dev` is stopped abruptly, `next dev` can be left running and holding port 3000; the next `pnpm dev` then silently serves from the old process. Stop leftover `node` processes before restarting.
-- **Quota counts come from `GET /api/quota`**, not `/auth/me` as planned: `/me` is cached for session checks, while the counts change after every poster.
-- **API tests run in worker threads, 2 at a time:** with child processes, Node on Windows sometimes aborted at process exit (0xC0000409, a libuv handle-closing assertion), and each file starts its own MongoDB.
-- **Gemini calls share one helper** (`services/gemini.ts`: structured JSON, model fallback within a time budget). Headlines use `gemini-3.1-flash-lite` first too: `gemini-3.8-flash` was busy or hung in most test calls, and the lite model writes good Bangla headlines in ~2–3 s.
+
+*AI (Gemini)*
+- **Models:** `gemini-2.5-flash` is closed to new API keys (404), and `gemini-3.8-flash` often answers 503 “high demand” or hangs. Both face detection and headline suggestions therefore try `GEMINI_VISION_MODEL=gemini-3.1-flash-lite` first (≈2–4 s, reliable, good Bangla) and fall back to `GEMINI_MODEL=gemini-3.8-flash`.
+- **One helper** (`services/gemini.ts`) makes every Gemini call: structured JSON, model fallback within a time budget.
+- **Face crop fallback:** when Gemini is busy, the default center crop is used; for photos with the person far off-center this can frame the background. A manual “move the crop” control would fix it (see after the deadline).
 - **Headline length:** the prompt asks for ≤ 40 characters, but up to 60 are accepted, since Bangla vowel signs count as characters and natural 5–6 word headlines run 41–50.
-- **Login UI** follows the Superdesign draft *Auth Screen with Navigation and Smooth Transitions* (`aa8ce61d-ceae-4d3e-8d35-065c1c2eb587`, v3) with the fixes listed under Phase 3.
+
+*Quotas and guardrails*
+- **Quota counts come from `GET /api/quota`**, not `/auth/me` as planned: `/me` is cached for session checks, while the counts change after every poster.
+- **Blocklist** (`apps/api/src/services/blocklist.ts`) is a small starting list: militant organizations banned in Bangladesh (also caught when spaced out letter by letter) and violent commands (whole words only, so mourning text like “হত্যা করা হয়েছে” passes). No political parties. The owner should review it (open question 2).
+- **Rate limits** (per API instance, in memory): code requests 20/h per IP and 5/h per phone (reviewer numbers exempt), code checks 30/15 min per IP, uploads 40/10 min, poster writes 30/10 min, suggestions 10/min per session. Off in tests except `rateLimits.test.ts`.
+- **History is paged by poster `_id`** (index `{ userId, _id }`), which grows with creation time.
 
 ## Time budget
 
-| | Hours |
-|---|---|
-| P0 tasks | ~27 h (~20 h done; left: deploy + ship) · P1 done: phases 6, 1.4, 2.6, 3.12, 4.4, 5.4, 5.9 |
-| P0 + P1 | ~42 h |
-| All (incl. P2) | ~43 h |
+| | Planned | Done | Left |
+|---|---|---|---|
+| P0 | ~27 h | Phases 0–8 except 4.5 | **~5 h**: API deploy (4.5, 45m) and ship & submit (Phase 10, ~4 h) |
+| P1 | ~15 h | Everything except 2.3 and Phase 9 | **~3 h**: polish (Phase 9, 2.5 h); AI backgrounds (2.3, 45m) optional |
+| P2 | ~1 h | 3.11, 8.3 | SMS signup (0.7): after the deadline |
 
-P0 + P1 is more than the realistic working time left in the ~46 h after sleep. Plan to finish **all P0 plus as much P1 as fits**, in this order: quotas → watermark → history → blocklist/rate limits → headlines → face crop. Use the checkpoints below to decide what to cut.
+All planned MVP features are built and tested on localhost. What's left is polish, deployment and submission, in this order: **Phase 9 → 4.5 + 10.1 (deploy) → 10.2–10.5 (check, README, video, submit)**. Do 2.3 only if time is left after the README.
 
 | Checkpoint | Target time | If behind |
 |---|---|---|
 | Render pipeline works (end of Phase 1) | 25 Sep, 14:00 | ✅ Locally. Render check moved to 4.5. |
 | Auth + uploads done, **API running on Render** (end of Phase 4) — ✅ locally, Render deploy still open | 25 Sep, 23:00 | Drop face crop (4.4) → center crop only. If Render can't render A3 in 512 MB, move to the Starter plan now, not on Day 2. |
 | **Minimum demo works** (end of Phase 5) — ✅ locally | 26 Sep, 11:00 | Drop Phase 7 (headlines) and all P2 tasks |
-| Feature freeze | 26 Sep, 18:00 | Ship what works; list the rest in the README |
+| Feature freeze — all MVP features done; only polish left | 26 Sep, 18:00 | Ship what works; list the rest in the README |
+| **Deployed and submitted** (end of Phase 10) | 26 Sep, 23:59 | Submit the localhost demo video and README if the deploy fails |
 
 ---
 
@@ -108,7 +127,7 @@ Goal: the two templates exist in the database and render from data, not hard-cod
 |---|---|---|---|---|---|
 | 2.1 | `layoutConfig` Zod schema in `shared`: slots per output size, text rules (font, min/max size, max lines, align), frame shape, optional slot, color tokens, background per size | 60m | P0 | ✅ | Schema compiles; one example config passes |
 | 2.2 | `Template` Mongoose model (`title`, `occasionType`, `thumbnailUrl`, `layoutConfig`, `isActive`) | 20m | P0 | ✅ | Model saves a validated config |
-| 2.3 | `scripts/generate-backgrounds.ts`: Gemini image model → background per template and size → upload to Cloudinary `templates/` | 45m | P1 | ⏸ | 2 backgrounds (plus sizes) uploaded and committed as assets/URLs. *Fallback: hand-made gradient backgrounds* (in use; needs `GEMINI_API_KEY`). |
+| 2.3 | `scripts/generate-backgrounds.ts`: Gemini image model → background per template and size → upload to Cloudinary `templates/` | 45m | P1 | ⏸ | 2 backgrounds (plus sizes) uploaded and committed as assets/URLs. *Fallback: hand-made gradient backgrounds* (in use). Gemini key now set, so this is unblocked but not done. |
 | 2.4 | HTML builder: `layoutConfig` + form data (escaped) + photo URLs → HTML string; author বিজয় দিবস and শোক/স্মরণ configs for 4:5 and A3 (separate layouts per size — the Phase 1 poster leaves a gap on A3) | 90m | P0 | ✅ | Both templates render with sample data in both sizes |
 | 2.5 | `scripts/seed-templates.ts`; `GET /api/templates` (filter by occasion) and `GET /api/templates/:id` | 30m | P0 | ✅ | Seed runs twice without duplicates; endpoints return 2 templates |
 | 2.6 | Tests: `layoutConfig` accepts both seeded templates and rejects malformed ones | 20m | P1 | ✅ | `pnpm test` green |
@@ -147,7 +166,7 @@ Kept from the draft: dark navy header with shield icon and "সুরক্ষ�
 | 3.11 | `POST /api/auth/logout-all` | 15m | P2 | ✅ | All sessions for the user deleted |
 | 3.12 | Tests: OTP expiry/attempts/reviewer code; session cookie, expired or deleted session → 401 | 45m | P1 | ✅ | `pnpm test` green |
 
-## Phase 4 — Uploads, face-aware crop & first deploy (~3.5 h) · Day 1 evening
+## Phase 4 — Uploads, face-aware crop & first deploy (~3.5 h) · Day 1 evening ✅ (except 4.5)
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
@@ -157,7 +176,7 @@ Kept from the draft: dark navy header with shield icon and "সুরক্ষ�
 | 4.4 | Gemini client (`@google/genai`) + face box: structured JSON, Zod-validated, timeout, center-crop fallback, log to `GenerationLog`; crop stored with the upload | 60m | P1 | ✅ | Off-center face ends up centered in the frame; with Gemini disabled, center crop is used |
 | 4.5 | *(from 0.6)* Deploy the **API only** to Render with `render.yaml`; temporarily allow `/api/dev/render-test` there (env flag) to measure A3 time and memory; then turn it off | 45m | P0 | | A3 PNG from Render with correct conjuncts in < 30 s, no out-of-memory restart |
 
-## Phase 5 — Generation end to end (~6.5 h) · Day 2 morning
+## Phase 5 — Generation end to end (~6.5 h) · Day 2 morning ✅
 
 Goal: **the minimum demo.** Form → generate → preview → download.
 
@@ -165,17 +184,17 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 5.1 | `Poster` model: `userId`, `templateId`, `formData`, `photos[]` (url + crop), `outputs`, `watermarked`, `status`, `renderVersion`, `editCount`, `errorMessage` | 30m | P0 | ✅ | Model exists, `{ userId, createdAt: -1 }` index |
+| 5.1 | `Poster` model: `userId`, `templateId`, `formData`, `photos[]` (url + crop), `outputs`, `watermarked`, `status`, `renderVersion`, `editCount`, `errorMessage` | 30m | P0 | ✅ | Model exists, `{ userId, _id: -1 }` index (history paging) |
 | 5.2 | Poster form Zod schema in `shared` (name, পদবি, party, optional symbol, union/থানা/জেলা, occasion, headline, 3 photo slots with leader 2 optional) | 30m | P0 | ✅ | Same schema used by web form and API |
 | 5.3 | `POST /api/posters`: validate → render 4:5 → upload to `posters/{userId}/` → save poster; status and Bangla error on failure | 90m | P0 | ✅ | API call returns a poster with a 4:5 URL in < 30 s |
 | 5.4 | Watermark overlay for free-tier users; `watermarked` flag saved | 20m | P1 | ✅ | Free poster has watermark, premium poster doesn't |
-| 5.5 | `GET /api/posters/:id` (owner only, else 404) and `GET /api/posters/:id/download?size=a3|social45`: render A3 on first request, cache URL in `outputs` | 60m | P0 | ✅ | A3 downloads at 3508×4961; another user's poster → 404 |
+| 5.5 | `GET /api/posters/:id` (owner only, else 404) and `GET /api/posters/:id/download?size=a3` (or `social45`): render A3 on first request, cache URL in `outputs` | 60m | P0 | ✅ | A3 downloads at 3508×4961; another user's poster → 404 |
 | 5.6 | Web: template picker page (thumbnails, occasion filter) | 45m | P0 | ✅ | Tapping a template opens the form |
 | 5.7 | Web: poster form with 3 labeled photo slots, browser-side downscale, upload progress, previews, Bangla validation messages | 90m | P0 | ✅ | Form submits on a phone with real photos |
 | 5.8 | Web: preview page with loading state, error + retry, download buttons (A3, 4:5) | 60m | P0 | ✅ | **Minimum demo path works on localhost** |
 | 5.9 | `POST /api/posters/:id/regenerate`: edit text fields → re-render, `editCount++`, clear cached A3 | 45m | P1 | ✅ | Changed name appears in the re-rendered poster |
 
-## Phase 6 — Quotas & tiers (~3 h) · Day 2
+## Phase 6 — Quotas & tiers (~3 h) · Day 2 ✅
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
@@ -183,26 +202,26 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 | 6.2 | `dhakaDate()` helper using `Intl` with `Asia/Dhaka` + tests around 23:59/00:00 Dhaka | 20m | P1 | ✅ | Tests pass for 17:59/18:00 UTC |
 | 6.3 | Quota service: atomic conditional `$inc` reserve, duplicate-key → "exceeded", `refund()`, limits by plan (free 3+2, premium 10+5) | 45m | P1 | ✅ | Unit tests for both plans pass |
 | 6.4 | Wire into create and regenerate; refund when render or upload fails | 30m | P1 | ✅ | Failed render leaves the count unchanged |
-| 6.5 | `/me` returns remaining quota; UI shows "আজ আর Nটি পোস্টার বানাতে পারবেন", limit message, "প্রিমিয়াম নিন" (coming soon) | 40m | P1 | ✅ | Remaining count updates after each poster |
+| 6.5 | `GET /api/quota` returns today's usage (not `/me`, which is cached); UI shows "আজ আর Nটি পোস্টার বানাতে পারবেন", limit message, "প্রিমিয়াম নিন" (coming soon) | 40m | P1 | ✅ | Remaining count updates after each poster |
 | 6.6 | Concurrency test: 5 parallel requests at the limit never exceed it | 30m | P1 | ✅ | Test green |
 
-## Phase 7 — Headline suggestions (~1.5 h) · Day 2
+## Phase 7 — Headline suggestions (~1.5 h) · Day 2 ✅
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
 | 7.1 | `POST /api/headlines/suggest`: Gemini text, structured JSON with 3–5 Bangla headlines per occasion, Zod-validated, 20/day per user, logged | 45m | P1 | ✅ | Returns 3–5 suggestions in < 5 s; 21st call → 429 |
 | 7.2 | Web: "AI পরামর্শ" button → suggestion chips that fill the editable headline field | 45m | P1 | ✅ | Picking a chip fills the field; user can still edit |
 
-## Phase 8 — History & guardrails (~3.5 h) · Day 2
+## Phase 8 — History & guardrails (~3.5 h) · Day 2 ✅
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 8.1 | `GET /api/posters/me` (paginated, newest first) | 30m | P1 | | Returns only the caller's posters |
-| 8.2 | Web: history page with thumbnails and re-download | 60m | P1 | | Old poster downloads again without using quota |
-| 8.3 | `DELETE /api/posters/:id`: delete Cloudinary poster and source photos (R8) | 30m | P2 | | Assets gone from Cloudinary |
-| 8.4 | Rate limits: OTP request (per phone + IP), upload, generate, headlines | 20m | P1 | | Burst requests get 429 with a Bangla message |
-| 8.5 | Blocklist service: static keyword list, normalized match (case, spaces, zero-width chars), applied to all text fields + tests | 45m | P1 | | Blocklisted term rejected with a clear Bangla message |
-| 8.6 | Terms of use page (Bangla) linked from the login checkbox | 20m | P1 | | Page reachable from login |
+| 8.1 | `GET /api/posters/me` (paginated, newest first) | 30m | P1 | ✅ | Returns only the caller's posters |
+| 8.2 | Web: history page with thumbnails and re-download | 60m | P1 | ✅ | Old poster downloads again without using quota |
+| 8.3 | `DELETE /api/posters/:id`: delete Cloudinary poster and source photos (R8) | 30m | P2 | ✅ | Assets gone from Cloudinary |
+| 8.4 | Rate limits: OTP request (per phone + IP), upload, generate, headlines | 20m | P1 | ✅ | Burst requests get 429 with a Bangla message |
+| 8.5 | Blocklist service: static keyword list, normalized match (case, spaces, zero-width chars), applied to all text fields + tests | 45m | P1 | ✅ | Blocklisted term rejected with a clear Bangla message |
+| 8.6 | Terms of use page (Bangla) linked from the login checkbox | 20m | P1 | ✅ | Page reachable from login |
 
 ## Phase 9 — Polish (~2.5 h) · Day 2 afternoon, before freeze
 
@@ -210,7 +229,8 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 |---|---|---|---|---|---|
 | 9.1 | Mobile UI pass on a real mid-range Android phone: spacing, tap targets, loading states | 90m | P1 | | Whole flow comfortable on the phone |
 | 9.2 | Review all Bangla copy and error messages | 30m | P1 | | No English strings visible to users |
-| 9.3 | Render tests: 60-char name/designation fit, conjunct sample renders without error | 30m | P1 | | `pnpm test` green |
+| 9.3 | Render tests in `pnpm test`: the `render:sample` checks (exact sizes, 60-char name/designation fit, no overflow, no leaked pages) already run as a script; move them into Vitest with real Chromium | 30m | P1 | | `pnpm test` green |
+| 9.4 | Delete the end-to-end test posters and uploads from the free reviewer account (01999000001), in Atlas and Cloudinary | 10m | P1 | | Reviewer account history is empty |
 
 **— Feature freeze 26 Sep 18:00 —**
 
@@ -218,9 +238,9 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 10.1 | Deploy web to Vercel (Root Directory `apps/web`, `API_ORIGIN` = Render URL); production env vars on Render (`APP_ORIGIN`, `DNS_SERVERS` not needed there), Atlas network access; confirm `/api/dev/*` is not mounted | 45m | P0 | | Production URL works in a private window |
+| 10.1 | Deploy web to Vercel (Root Directory `apps/web`, `API_ORIGIN` = Render URL). Render env: `APP_ORIGIN`, `MONGODB_URI`, Cloudinary keys, `OTP_PEPPER`, reviewer numbers + code, `GEMINI_API_KEY` (+ model names), `CHROME_NO_SANDBOX=true`; decide `OTP_DEV_MODE` (needed for non-reviewer logins without an SMS provider, but lets anyone log in as any number). `DNS_SERVERS` not needed there. Seed templates and reviewer users on the production database; Atlas network access; confirm `/api/dev/*` is not mounted | 45m | P0 | | Production URL works in a private window |
 | 10.2 | Run the acceptance checklist (`project-scope.md` §9) on a real phone; fix blockers only | 45m | P0 | | All P0 items pass; failures noted |
-| 10.3 | README: what it is, architecture diagram, why Option B, why DB sessions, setup (`pnpm dev`, `.env.example`, `DNS_SERVERS` note), reviewer access (free/premium test numbers), quota rules, cut list, next steps | 90m | P0 | | A new reader can log in and run it locally |
+| 10.3 | README: what it is, architecture diagram, why Option B, why DB sessions, setup (`pnpm dev`, `.env.example`, `DNS_SERVERS` note), reviewer access (free/premium test numbers), quota rules, cut list, known limitations (starting blocklist, in-memory rate limits for one instance, face-crop fallback, dev-mode logins), next steps | 90m | P0 | | A new reader can log in and run it locally |
 | 10.4 | Commit 2–3 sample posters; record a 1–2 min demo video | 45m | P0 | | Files in repo; video link in README |
 | 10.5 | Wake the Render backend, final smoke test, submit | 15m | P0 | | Submitted before 23:59 |
 
@@ -232,3 +252,8 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 - 1:1 social export (1080×1080)
 - Open question 1, option B: free text-only re-renders per poster
 - Admin panel, moderation queue, PDF export, bulk/CSV, payments, campaign templates (see `project-scope.md` §4)
+- Manual “move the crop” control for photos where face detection fails
+- Shared rate-limit store (e.g. Redis) once there is more than one API instance
+- Cleanup job for uploads that were never used in a poster
+- Blocklist managed by an admin instead of a code file
+- AI backgrounds (2.3), if not done before the deadline
