@@ -15,7 +15,7 @@ export function AppHeader({ title, backHref }: { title?: string; backHref?: stri
         <Link
           href={backHref}
           aria-label="ফিরে যান"
-          className="-ml-1 rounded-lg p-1.5 text-slate-200 hover:bg-slate-800 hover:text-white"
+          className="-ml-2 rounded-lg p-2.5 text-slate-200 hover:bg-slate-800 hover:text-white"
         >
           <ArrowLeft className="size-5" />
         </Link>
@@ -27,7 +27,7 @@ export function AppHeader({ title, backHref }: { title?: string; backHref?: stri
           size="sm"
           onClick={() => logout.mutate(false)}
           disabled={logout.isPending}
-          className="text-slate-200 hover:bg-slate-800 hover:text-white"
+          className="h-10 px-3 text-slate-200 hover:bg-slate-800 hover:text-white"
         >
           <LogOut aria-hidden />
           লগআউট

@@ -119,7 +119,7 @@ export function PosterTextFields({
       {main.map(renderField)}
       {leaders.length > 0 && (
         <details className="group rounded-xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+          <summary className="-my-2 cursor-pointer py-2.5 text-sm font-semibold text-slate-700">
             নেতাদের নাম ও পদবি <span className="font-normal text-slate-400">(ঐচ্ছিক)</span>
           </summary>
           <div className="mt-4 space-y-4">{leaders.map(renderField)}</div>

@@ -199,7 +199,7 @@ export function LoginForm() {
               <button
                 type="button"
                 onClick={() => fillPhone(phoneInput)}
-                className="font-medium text-emerald-700 underline underline-offset-4"
+                className="inline-flex min-h-10 items-center -my-2.5 py-2.5 font-medium text-emerald-700 underline underline-offset-4"
               >
                 নম্বর পরিবর্তন করুন
               </button>

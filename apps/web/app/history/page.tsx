@@ -78,7 +78,7 @@ function HistoryCard({ poster }: { poster: PosterDto }) {
   }
 
   const iconButton =
-    'flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white py-2 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-50';
+    'flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white py-3 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-50';
 
   return (
     <article className="space-y-2">

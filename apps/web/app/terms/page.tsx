@@ -23,7 +23,10 @@ export default function TermsPage() {
           <li key={term}>{term}</li>
         ))}
       </ol>
-      <Link href="/login" className="mt-8 inline-block font-medium text-emerald-700 underline">
+      <Link
+        href="/login"
+        className="mt-6 inline-flex min-h-11 items-center font-medium text-emerald-700 underline"
+      >
         লগইন পাতায় ফিরে যান
       </Link>
     </main>

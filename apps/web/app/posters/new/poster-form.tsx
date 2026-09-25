@@ -154,9 +154,14 @@ export function PosterForm() {
         />
         <div className="min-w-0 flex-1">
           <p className="text-xs text-slate-500">টেমপ্লেট</p>
-          <p className="truncate font-bold text-slate-900">{template.data.title}</p>
+          <p className="line-clamp-2 leading-snug font-bold text-slate-900">
+            {template.data.title}
+          </p>
         </div>
-        <Link href="/" className="shrink-0 text-sm font-medium text-emerald-700 underline">
+        <Link
+          href="/"
+          className="inline-flex min-h-10 items-center -my-2.5 py-2.5 shrink-0 px-1 text-sm font-medium text-emerald-700 underline"
+        >
           পরিবর্তন করুন
         </Link>
       </section>

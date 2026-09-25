@@ -49,7 +49,7 @@ export function ReviewerAccessCard({
           রিভিউয়ার এক্সেস
         </h2>
         {devMode && (
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-500">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-slate-500">
             <button
               type="button"
               role="switch"
@@ -84,7 +84,7 @@ export function ReviewerAccessCard({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              className="h-10 px-3"
               onClick={() => onUsePhone(account.phone)}
             >
               ব্যবহার করুন

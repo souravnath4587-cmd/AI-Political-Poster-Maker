@@ -47,7 +47,7 @@ export function HeadlineSuggestions({
         type="button"
         onClick={() => suggest.mutate()}
         disabled={suggest.isPending}
-        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-60"
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-60"
       >
         {suggest.isPending ? (
           <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -66,7 +66,7 @@ export function HeadlineSuggestions({
               role="listitem"
               onClick={() => onPick(headline)}
               className={cn(
-                'rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors',
+                'min-h-10 rounded-lg border px-3 py-2 text-left text-sm transition-colors',
                 current === headline
                   ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
                   : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-400',

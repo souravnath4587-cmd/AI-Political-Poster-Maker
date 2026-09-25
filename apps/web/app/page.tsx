@@ -147,7 +147,10 @@ export default function Dashboard() {
               আপনার পোস্টার
             </h2>
             {posters.data && posters.data.length > 0 && (
-              <Link href="/history" className="text-xs font-semibold text-emerald-700">
+              <Link
+                href="/history"
+                className="inline-flex min-h-10 items-center -my-2.5 py-2.5 px-2 -mr-2 text-xs font-semibold text-emerald-700"
+              >
                 সবগুলো দেখুন
               </Link>
             )}
@@ -188,7 +191,7 @@ export default function Dashboard() {
           variant="outline"
           onClick={() => logout.mutate(true)}
           disabled={logout.isPending}
-          className="w-full"
+          className="h-11 w-full"
         >
           সব ডিভাইস থেকে লগআউট
         </Button>

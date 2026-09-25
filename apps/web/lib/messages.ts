@@ -49,6 +49,10 @@ export function errorMessage(error: unknown): string {
       return 'টেমপ্লেটটি পাওয়া যায়নি। অন্য একটি বেছে নিন।';
     case 'BLOCKED_CONTENT':
       return 'লেখায় এমন শব্দ আছে যা ব্যবহার করা যাবে না। লাল চিহ্নিত ঘরটি ঠিক করুন।';
+    case 'VALIDATION_ERROR':
+      return 'কিছু তথ্য ঠিক নেই। দেখে নিয়ে আবার চেষ্টা করুন।';
+    case 'NOT_FOUND':
+      return 'যা খুঁজছেন তা পাওয়া যায়নি।';
     case 'AI_UNAVAILABLE':
       return 'এই মুহূর্তে এআই পরামর্শ পাওয়া যাচ্ছে না। একটু পরে চেষ্টা করুন, বা নিজে লিখুন।';
     case 'POSTER_NOT_FOUND':

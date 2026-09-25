@@ -28,7 +28,7 @@ export function ResendTimer({ availableAt, onResend, disabled }: ResendTimerProp
       type="button"
       onClick={onResend}
       disabled={waiting || disabled}
-      className="text-xs font-medium text-slate-500 underline underline-offset-4 enabled:hover:text-emerald-700 disabled:text-slate-400 disabled:no-underline"
+      className="inline-flex min-h-10 items-center -my-2.5 py-2.5 text-xs font-medium text-slate-500 underline underline-offset-4 enabled:hover:text-emerald-700 disabled:text-slate-400 disabled:no-underline"
     >
       {waiting ? `আবার পাঠান (${toBanglaDigits(secondsLeft)}সে.)` : 'আবার কোড পাঠান'}
     </button>
