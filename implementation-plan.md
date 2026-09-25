@@ -1,6 +1,6 @@
 # Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 8).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 9).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -27,13 +27,14 @@
 | 6 — Quotas | ✅ Free 3 posters + 2 regenerations/day, premium 10 + 5, reset at Dhaka midnight (18:00 UTC). Counter created first, then one conditional `$inc` below the limit (no race on the first request of the day); reserve-then-refund around render/save, so failed renders and invalid input cost nothing; re-downloads free. `GET /api/quota`; quota card on dashboard, form (submit blocked at the limit) and result page. 83 tests incl. 5 and 6 parallel requests. | `6e9a6f6` |
 | 7 — Headlines | ✅ `POST /api/headlines/suggest`: 3–5 short Bangla headlines per occasion, using what the user typed (organization, area, names); party-neutral, respectful, no anniversary numbers; cleaned (Bangla only, ≤ 60 chars, no duplicates). 20/day per user through the Phase 6 quota system, refunded on failure; logged. Web: “এআই পরামর্শ” chips under the headline on the form and the edit panel. Real Gemini: 5 suggestions in ~2–3 s. 109 tests. | `8c4e924` |
 | 8 — History & guardrails | ✅ History page with paging (`?before=` cursor), A3/4:5 downloads and in-card delete confirmation; `DELETE /api/posters/:id` removes the poster, its images and source photos no other poster uses. Rate limits (in-memory, per IP / phone / session) on login codes, code checks, uploads, poster writes and suggestions. Keyword blocklist on poster text, suggestion context and suggestions; the form marks the field. Terms page finalized. 132 tests; checked in the browser. | `153119d` |
-| 9 — Polish | Not started. **Next.** | |
-| 10 — Ship & submit | Not started | |
+| 9 — Polish | ✅ except the real-phone check. Emulated phone pass at 360×780 with touch on every page: no sideways scrolling, every tap target ≥ 40 px (13 were smaller: back arrow, logout, reviewer buttons, inline links, suggestion chips, history buttons…). No English visible to users; Bangla messages for every API error code. Render checks now in `pnpm test` with real Chromium (2 templates × 2 sizes × 3 variants + page leaks). Free reviewer account emptied of test data. 145 tests. | `d967842` |
+| 10 — Ship & submit | Not started. **Next.** | |
 
 **Open decisions and follow-ups:**
 - **Render deploy (4.5):** deploy the API now to measure A3 rendering within the free tier's 512 MB, or wait until Phase 10 and accept that risk. The user prefers localhost for now. This is the last open P0 item before shipping.
 - **Blocklist review:** the starting list in `apps/api/src/services/blocklist.ts` needs the owner's review (project-scope open question 2).
-- **Test data:** the free reviewer account (01999000001) still has test posters and uploads from the end-to-end runs; delete them before reviewers see the account.
+- **Test data:** ✅ the free reviewer account (01999000001) is empty. The premium reviewer account (01999000002) has one poster (“Jhone China”) and 6 uploads that were not made by the automated tests; they were left for the owner to keep or delete. One other user exists in the database (also left as is).
+- **Real-phone check (9.1):** the phone pass was emulated in Chrome; try the whole flow once on a real mid-range Android phone before submitting.
 - **Flaky test run:** one workspace test run failed once and couldn't be reproduced in 5 later runs (output not captured); likely memory pressure on the dev machine. If it recurs, capture the output.
 - **Gemini key:** ✅ set. Face detection and headline suggestions use it; AI backgrounds (2.3) could now be done.
 
@@ -79,10 +80,10 @@
 | | Planned | Done | Left |
 |---|---|---|---|
 | P0 | ~27 h | Phases 0–8 except 4.5 | **~5 h**: API deploy (4.5, 45m) and ship & submit (Phase 10, ~4 h) |
-| P1 | ~15 h | Everything except 2.3 and Phase 9 | **~3 h**: polish (Phase 9, 2.5 h); AI backgrounds (2.3, 45m) optional |
+| P1 | ~15 h | Everything except 2.3 | Real-phone check (~15m); AI backgrounds (2.3, 45m) optional |
 | P2 | ~1 h | 3.11, 8.3 | SMS signup (0.7): after the deadline |
 
-All planned MVP features are built and tested on localhost. What's left is polish, deployment and submission, in this order: **Phase 9 → 4.5 + 10.1 (deploy) → 10.2–10.5 (check, README, video, submit)**. Do 2.3 only if time is left after the README.
+All planned MVP features are built and tested on localhost. What's left is deployment and submission, in this order: **4.5 + 10.1 (deploy) → 10.2–10.5 (check on a real phone, README, video, submit)**. Do 2.3 only if time is left after the README.
 
 | Checkpoint | Target time | If behind |
 |---|---|---|
@@ -223,14 +224,14 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 | 8.5 | Blocklist service: static keyword list, normalized match (case, spaces, zero-width chars), applied to all text fields + tests | 45m | P1 | ✅ | Blocklisted term rejected with a clear Bangla message |
 | 8.6 | Terms of use page (Bangla) linked from the login checkbox | 20m | P1 | ✅ | Page reachable from login |
 
-## Phase 9 — Polish (~2.5 h) · Day 2 afternoon, before freeze
+## Phase 9 — Polish (~2.5 h) · Day 2 afternoon, before freeze ✅ (real-phone check open)
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 9.1 | Mobile UI pass on a real mid-range Android phone: spacing, tap targets, loading states | 90m | P1 | | Whole flow comfortable on the phone |
-| 9.2 | Review all Bangla copy and error messages | 30m | P1 | | No English strings visible to users |
-| 9.3 | Render tests in `pnpm test`: the `render:sample` checks (exact sizes, 60-char name/designation fit, no overflow, no leaked pages) already run as a script; move them into Vitest with real Chromium | 30m | P1 | | `pnpm test` green |
-| 9.4 | Delete the end-to-end test posters and uploads from the free reviewer account (01999000001), in Atlas and Cloudinary | 10m | P1 | | Reviewer account history is empty |
+| 9.1 | Mobile UI pass on a real mid-range Android phone: spacing, tap targets, loading states | 90m | P1 | ✅ | Whole flow comfortable on the phone. *Done emulated (360×780, touch); a check on a real phone is still open.* |
+| 9.2 | Review all Bangla copy and error messages | 30m | P1 | ✅ | No English strings visible to users |
+| 9.3 | Render tests in `pnpm test`: the `render:sample` checks (exact sizes, 60-char name/designation fit, no overflow, no leaked pages) already run as a script; move them into Vitest with real Chromium | 30m | P1 | ✅ | `pnpm test` green |
+| 9.4 | Delete the end-to-end test posters and uploads from the free reviewer account (01999000001), in Atlas and Cloudinary | 10m | P1 | ✅ | Reviewer account history is empty |
 
 **— Feature freeze 26 Sep 18:00 —**
 
