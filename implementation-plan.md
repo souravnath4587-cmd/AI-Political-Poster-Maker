@@ -1,6 +1,6 @@
 # Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 5).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 6).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -24,7 +24,8 @@
 | 3 — Auth | ✅ Phone + one-time code, DB sessions (hashed token, httpOnly cookie, sliding expiry), Origin check, reviewer free/premium logins, `/login` from the Superdesign draft with its fixes, 61 tests + browser run at 390 px. | `a95009b` |
 | 4 — Uploads | 4.1–4.3 ✅: `POST /api/upload` (sharp: real-format check, EXIF rotation, metadata stripped, size rules + low-res warning), private Cloudinary storage with signed URLs (unsigned/altered → 401), verified against the real account; Chromium renders the private photos. 4.4 ✅ face detection verified with the real key: `gemini-3.1-flash-lite` (prompt limited to the face, “do not guess”, confidence ≥ 0.6) with `gemini-3.8-flash` as busy fallback, 10 s budget, default crop on any failure. 4.5 deploy waiting for a decision. 76 tests. | `d4aeb87`, `1388a30` |
 | 5 — Generation | ✅ **Minimum demo works on localhost**, verified end to end in headless Chrome at 390 px: login → dashboard → form (validation, 3 uploads in ~5 s with face detection) → poster in ~7 s → A3 download 3508×4961 @300 DPI (~19 s first time) → edit + regenerate → history. API: create/read/list/download/regenerate with owner-only access, photo ownership + kind checks, watermark for free users, A3 rendered on first download and cached, `?format=json` download links; 57 API tests. Web: dashboard, poster form (photo slots with progress, face badge, low-res warning), result page with downloads and text editing. | `b426595` |
-| 6–10 | Not started. **Next: Phase 6** (quotas & tiers). | |
+| 6 — Quotas | ✅ Free 3 posters + 2 regenerations/day, premium 10 + 5, reset at Dhaka midnight (18:00 UTC). Counter created first, then one conditional `$inc` below the limit (no race on the first request of the day); reserve-then-refund around render/save, so failed renders and invalid input cost nothing; re-downloads free. `GET /api/quota`; quota card on dashboard, form (submit blocked at the limit) and result page. 83 tests incl. 5 and 6 parallel requests. | `6e9a6f6` |
+| 7–10 | Not started. **Next: Phase 7** (headline suggestions). | |
 
 **Open decisions:**
 - **Gemini key:** ✅ set. Face detection (4.4) is on; AI backgrounds (2.3) and headline suggestions (Phase 7) can now use it.
@@ -48,13 +49,15 @@
 - **Gemini models:** `gemini-2.5-flash` is closed to new API keys (404), and `gemini-3.8-flash` often answers 503 “high demand”. Face detection therefore uses `GEMINI_VISION_MODEL=gemini-3.1-flash-lite` (≈3 s, reliable) and falls back to `GEMINI_MODEL=gemini-3.8-flash`, which stays the model for Bangla headline text.
 - **Face crop fallback:** when Gemini is busy, the default center crop is used; for photos with the person far off-center this can frame the background. A manual “move the crop” control would fix it (possible improvement, not planned).
 - **Dev servers:** if `pnpm dev` is stopped abruptly, `next dev` can be left running and holding port 3000; the next `pnpm dev` then silently serves from the old process. Stop leftover `node` processes before restarting.
+- **Quota counts come from `GET /api/quota`**, not `/auth/me` as planned: `/me` is cached for session checks, while the counts change after every poster.
+- **API tests run in worker threads, 2 at a time:** with child processes, Node on Windows sometimes aborted at process exit (0xC0000409, a libuv handle-closing assertion), and each file starts its own MongoDB.
 - **Login UI** follows the Superdesign draft *Auth Screen with Navigation and Smooth Transitions* (`aa8ce61d-ceae-4d3e-8d35-065c1c2eb587`, v3) with the fixes listed under Phase 3.
 
 ## Time budget
 
 | | Hours |
 |---|---|
-| P0 tasks | ~27 h (~20 h done; left: deploy + ship) |
+| P0 tasks | ~27 h (~20 h done; left: deploy + ship) · P1 done: phases 6, 1.4, 2.6, 3.12, 4.4, 5.4, 5.9 |
 | P0 + P1 | ~42 h |
 | All (incl. P2) | ~43 h |
 
@@ -173,12 +176,12 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 6.1 | `UsageCounter` model with unique `{ userId, date }` index | 15m | P1 | | Index exists |
-| 6.2 | `dhakaDate()` helper using `Intl` with `Asia/Dhaka` + tests around 23:59/00:00 Dhaka | 20m | P1 | | Tests pass for 17:59/18:00 UTC |
-| 6.3 | Quota service: atomic conditional `$inc` reserve, duplicate-key → "exceeded", `refund()`, limits by plan (free 3+2, premium 10+5) | 45m | P1 | | Unit tests for both plans pass |
-| 6.4 | Wire into create and regenerate; refund when render or upload fails | 30m | P1 | | Failed render leaves the count unchanged |
-| 6.5 | `/me` returns remaining quota; UI shows "আজ আর Nটি পোস্টার বানাতে পারবেন", limit message, "প্রিমিয়াম নিন" (coming soon) | 40m | P1 | | Remaining count updates after each poster |
-| 6.6 | Concurrency test: 5 parallel requests at the limit never exceed it | 30m | P1 | | Test green |
+| 6.1 | `UsageCounter` model with unique `{ userId, date }` index | 15m | P1 | ✅ | Index exists |
+| 6.2 | `dhakaDate()` helper using `Intl` with `Asia/Dhaka` + tests around 23:59/00:00 Dhaka | 20m | P1 | ✅ | Tests pass for 17:59/18:00 UTC |
+| 6.3 | Quota service: atomic conditional `$inc` reserve, duplicate-key → "exceeded", `refund()`, limits by plan (free 3+2, premium 10+5) | 45m | P1 | ✅ | Unit tests for both plans pass |
+| 6.4 | Wire into create and regenerate; refund when render or upload fails | 30m | P1 | ✅ | Failed render leaves the count unchanged |
+| 6.5 | `/me` returns remaining quota; UI shows "আজ আর Nটি পোস্টার বানাতে পারবেন", limit message, "প্রিমিয়াম নিন" (coming soon) | 40m | P1 | ✅ | Remaining count updates after each poster |
+| 6.6 | Concurrency test: 5 parallel requests at the limit never exceed it | 30m | P1 | ✅ | Test green |
 
 ## Phase 7 — Headline suggestions (~1.5 h) · Day 2
 
