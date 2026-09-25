@@ -1,73 +1,71 @@
-// Phase 1 render check: writes sample posters to .data/renders and reports timing, sizes and leaks.
-//   pnpm --filter @app/api render:sample
+// Renders every template at both sizes and checks pixel size, DPI, text overflow and leaked pages.
+// Images go to apps/api/.data/renders for a visual check.
+//   pnpm --filter @app/api render:sample [slug]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
-import { OUTPUT_SIZES, type OutputSize } from '@app/shared';
+import { layoutConfigSchema, OUTPUT_SIZES, outputSizeSchema, type OutputSize } from '@app/shared';
+import { buildPosterHtml, type PosterContent } from '../src/render/posterHtml';
 import { closeBrowser, openPageCount, renderPoster } from '../src/services/render';
-import {
-  buildTestPosterHtml,
-  SAMPLE_POSTER,
-  TEST_POSTER_FONTS,
-  type TestPosterData,
-} from '../src/render/testPoster';
+import { SAMPLE_CONTENT, TEMPLATE_SEEDS } from '../src/templates';
 
 const outDir = resolve(import.meta.dirname, '../.data/renders');
 mkdirSync(outDir, { recursive: true });
 
 const sixty = (text: string) => text.repeat(3).slice(0, 60);
 
-// Worst case from the acceptance criteria: 60-character name and designation.
-const LONG_TEXT: TestPosterData = {
-  ...SAMPLE_POSTER,
-  requester: {
-    ...SAMPLE_POSTER.requester,
-    name: sixty('মোহাম্মদ আব্দুল্লাহ আল মামুন চৌধুরী শান্ত '),
-    designation: sixty('কেন্দ্রীয় কার্যনির্বাহী কমিটির সহ-সাংগঠনিক সম্পাদক '),
+const VARIANTS: Record<string, PosterContent> = {
+  sample: SAMPLE_CONTENT,
+  // Leader 2 left out: the layout should switch to one centered leader.
+  solo: { ...SAMPLE_CONTENT, photos: { ...SAMPLE_CONTENT.photos, leader2Photo: undefined } },
+  // Worst case from the acceptance criteria: 60-character name and designation.
+  long: {
+    ...SAMPLE_CONTENT,
+    text: {
+      ...SAMPLE_CONTENT.text,
+      name: sixty('মোহাম্মদ আব্দুল্লাহ আল মামুন চৌধুরী শান্ত '),
+      designation: sixty('কেন্দ্রীয় কার্যনির্বাহী কমিটির সহ-সাংগঠনিক সম্পাদক '),
+      organization: sixty('বাংলাদেশ জাতীয় যুব সংগঠন, কেন্দ্রীয় কমিটি, ঢাকা মহানগর '),
+    },
   },
 };
 
-async function renderToFile(name: string, data: TestPosterData, size: OutputSize) {
-  const result = await renderPoster(buildTestPosterHtml(data), {
-    size,
-    requiredFonts: TEST_POSTER_FONTS,
-  });
-  const file = resolve(outDir, `${name}-${size}.png`);
-  writeFileSync(file, result.png);
-
-  const meta = await sharp(result.png).metadata();
-  const expected = OUTPUT_SIZES[size];
-  const sizeOk = meta.width === expected.width && meta.height === expected.height;
-  const overflow = result.fit.filter((f) => f.overflow).map((f) => f.id);
-
-  console.log(
-    `${name}-${size}: ${meta.width}×${meta.height} @${meta.density}dpi ${sizeOk ? 'OK' : 'WRONG SIZE'}, ` +
-      `${result.renderMs} ms, ${(result.png.length / 1024 / 1024).toFixed(1)} MB, ` +
-      `overflow: ${overflow.length ? overflow.join(', ') : 'none'}`,
-  );
-  for (const f of result.fit) console.log(`    ${f.id}: ${f.fontSizePx}px, ${f.lines} line(s)`);
-  return sizeOk && overflow.length === 0;
-}
-
+const only = process.argv[2];
 let ok = true;
-for (const size of ['social45', 'a3'] as const) {
-  ok = (await renderToFile('sample', SAMPLE_POSTER, size)) && ok;
-  ok = (await renderToFile('long-text', LONG_TEXT, size)) && ok;
+
+for (const seed of TEMPLATE_SEEDS.filter((s) => !only || s.slug === only)) {
+  const config = layoutConfigSchema.parse(seed.layoutConfig);
+
+  for (const [variant, content] of Object.entries(VARIANTS)) {
+    for (const size of outputSizeSchema.options as OutputSize[]) {
+      const { html, requiredFonts } = buildPosterHtml(config, size, content);
+      const result = await renderPoster(html, { size, requiredFonts });
+      const name = `${seed.slug}-${variant}-${size}`;
+      writeFileSync(resolve(outDir, `${name}.png`), result.png);
+
+      const meta = await sharp(result.png).metadata();
+      const expected = OUTPUT_SIZES[size];
+      const sizeOk = meta.width === expected.width && meta.height === expected.height;
+      const overflow = result.fit.filter((f) => f.overflow).map((f) => f.id);
+      ok = ok && sizeOk && overflow.length === 0;
+
+      console.log(
+        `${name}: ${meta.width}×${meta.height} @${meta.density}dpi ${sizeOk ? 'OK' : 'WRONG SIZE'}, ` +
+          `${result.renderMs} ms, overflow: ${overflow.length ? overflow.join(', ') : 'none'}`,
+      );
+    }
+  }
 }
 
-// 10 renders in a row: pages must not leak and time/memory must stay flat.
-const html = buildTestPosterHtml(SAMPLE_POSTER);
+// 10 renders in a row: pages must not leak.
+const first = layoutConfigSchema.parse(TEMPLATE_SEEDS[0]!.layoutConfig);
+const { html, requiredFonts } = buildPosterHtml(first, 'social45', SAMPLE_CONTENT);
 const times: number[] = [];
 for (let i = 0; i < 10; i++) {
-  const { renderMs } = await renderPoster(html, {
-    size: 'social45',
-    requiredFonts: TEST_POSTER_FONTS,
-  });
-  times.push(renderMs);
+  times.push((await renderPoster(html, { size: 'social45', requiredFonts })).renderMs);
 }
 const leaked = await openPageCount();
 console.log(`10× social45: ${times.join(', ')} ms; open pages after: ${leaked}`);
-console.log(`API process RSS: ${Math.round(process.memoryUsage().rss / 1024 / 1024)} MB`);
 ok = ok && leaked === 0;
 
 await closeBrowser();

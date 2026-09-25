@@ -6,6 +6,7 @@ import { logger } from './lib/logger';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { devRouter } from './routes/dev';
 import { healthRouter } from './routes/health';
+import { templatesRouter } from './routes/templates';
 
 export function createApp() {
   const app = express();
@@ -19,6 +20,7 @@ export function createApp() {
   app.use(express.json({ limit: '100kb' }));
 
   app.use('/api/health', healthRouter);
+  app.use('/api/templates', templatesRouter);
   if (!isProduction) app.use('/api/dev', devRouter);
 
   app.use(notFound);

@@ -18,6 +18,9 @@ export const FIT_TEXT_SCRIPT = `(() => {
   const results = [];
   const vw = window.innerWidth / 100;
   for (const box of document.querySelectorAll('[data-fit]')) {
+    // Height is measured on the block wrapper (lines × line-height), not box.scrollHeight: Bangla
+    // fonts' glyph areas are taller than a tight line-height and would count as false overflow.
+    const block = box.firstElementChild || box;
     const span = box.querySelector('span') || box;
     const minPx = parseFloat(box.dataset.fitMin) * vw;
     const maxPx = parseFloat(box.dataset.fitMax) * vw;
@@ -26,7 +29,7 @@ export const FIT_TEXT_SCRIPT = `(() => {
       box.style.fontSize = px + 'px';
       const lines = new Set([...span.getClientRects()].map((r) => Math.round(r.top))).size;
       const fits =
-        box.scrollHeight <= box.clientHeight + 1 &&
+        block.offsetHeight <= box.clientHeight + 1 &&
         box.scrollWidth <= box.clientWidth + 1 &&
         (maxLines === 0 || lines <= maxLines);
       return { fits, lines };
