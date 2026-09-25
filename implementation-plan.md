@@ -1,6 +1,6 @@
 # Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 4).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 5).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -22,14 +22,18 @@
 | 1 — Render pipeline | ✅ Done locally: conjuncts correct, A3 3508×4961 @300 DPI in ~2 s, 4:5 in ~0.6 s, no leaked pages. Not yet measured on Render (4.5). | `ad3f941` |
 | 2 — Templates | ✅ 2 templates (বিজয় দিবস, শোক/স্মরণ) × 2 sizes, 1- and 2-leader variants, seeded to Atlas, `GET /api/templates`, 25 tests. AI backgrounds (2.3) waiting for a Gemini key; CSS gradients used meanwhile. | `0604018` |
 | 3 — Auth | ✅ Phone + one-time code, DB sessions (hashed token, httpOnly cookie, sliding expiry), Origin check, reviewer free/premium logins, `/login` from the Superdesign draft with its fixes, 61 tests + browser run at 390 px. | `a95009b` |
-| 4 — Uploads | 4.1–4.3 ✅: `POST /api/upload` (sharp: real-format check, EXIF rotation, metadata stripped, size rules + low-res warning), private Cloudinary storage with signed URLs (unsigned/altered → 401), verified against the real account; Chromium renders the private photos. 4.4 face detection written with Gemini + default-crop fallback, **not yet run for real** (needs `GEMINI_API_KEY`). 4.5 deploy waiting for a decision. 76 tests. | `d4aeb87` |
-| 5–10 | Not started. **Next: Phase 5** (generation end to end: the minimum demo). | |
+| 4 — Uploads | 4.1–4.3 ✅: `POST /api/upload` (sharp: real-format check, EXIF rotation, metadata stripped, size rules + low-res warning), private Cloudinary storage with signed URLs (unsigned/altered → 401), verified against the real account; Chromium renders the private photos. 4.4 ✅ face detection verified with the real key: `gemini-3.1-flash-lite` (prompt limited to the face, “do not guess”, confidence ≥ 0.6) with `gemini-3.8-flash` as busy fallback, 10 s budget, default crop on any failure. 4.5 deploy waiting for a decision. 76 tests. | `d4aeb87`, `1388a30` |
+| 5 — Generation | ✅ **Minimum demo works on localhost**, verified end to end in headless Chrome at 390 px: login → dashboard → form (validation, 3 uploads in ~5 s with face detection) → poster in ~7 s → A3 download 3508×4961 @300 DPI (~19 s first time) → edit + regenerate → history. API: create/read/list/download/regenerate with owner-only access, photo ownership + kind checks, watermark for free users, A3 rendered on first download and cached, `?format=json` download links; 57 API tests. Web: dashboard, poster form (photo slots with progress, face badge, low-res warning), result page with downloads and text editing. | `b426595` |
+| 6–10 | Not started. **Next: Phase 6** (quotas & tiers). | |
 
 **Open decisions:**
-- **Gemini key:** add `GEMINI_API_KEY` to `apps/api/.env` to turn on face detection (4.4, then test with a real face photo), AI backgrounds (2.3) and headline suggestions (Phase 7). Without it all three fall back gracefully.
+- **Gemini key:** ✅ set. Face detection (4.4) is on; AI backgrounds (2.3) and headline suggestions (Phase 7) can now use it.
 - **Render deploy (4.5):** deploy the API now to measure A3 rendering within the free tier's 512 MB, or wait until Phase 10 and accept that risk. The user prefers localhost for now.
 
-**Waiting for review:** the *Expanded Template Library — Dashboard* Superdesign draft (`6a21b930`, listed in `design-prompt.md`) is to be fetched and checked against the scope before task 5.6 (template picker), the same way the login draft was.
+**Dashboard, form and result designs** (Superdesign drafts `6a21b930`, `cb91cd05`, `d9ba6cf1`) were reviewed against the scope and built with these changes:
+- Dashboard: only the real templates from the API, with their rendered 4:5 thumbnails in a 2-column grid (not 5 categories with stock photos); neutral “স্বাগতম” greeting with plan badge; premium banner for free users marked “শীঘ্রই আসছে” (premium is 10/day, not unlimited); history from `GET /api/posters/me` with an empty state; no reviewer footer or “V0.5 DRAFT” badge; quota card deferred to Phase 6.
+- Form: template chosen on the dashboard (shown compact with “পরিবর্তন করুন”), leader name fields added in a collapsible section, no separate preview step.
+- Result page: no project name or public/private switch (public sharing is out of scope); A3 and 4:5 downloads plus text editing instead.
 
 **Decisions made while building (not in the original plan):**
 - **Localhost first.** Deploying to Render/Vercel is postponed. `pnpm dev` starts db + api + web; a local MongoDB (the `mongodb-memory-server` binary) starts only when `MONGODB_URI` points at localhost. Atlas is configured in `apps/api/.env`.
@@ -41,13 +45,16 @@
 - **Text fitting measures lines × line-height**, not `scrollHeight`: Bangla glyph areas are taller than a tight line-height and caused false overflow.
 - **Login options come from the API** (`GET /api/auth/options`: reviewer numbers, dev mode) instead of a `NEXT_PUBLIC_SHOW_REVIEWER_ACCESS` flag, so the API env is the single switch.
 - **Reviewer logins:** `01999000001` (free) and `01999000002` (premium), code `123456`, seeded by `pnpm --filter @app/api seed:users`.
+- **Gemini models:** `gemini-2.5-flash` is closed to new API keys (404), and `gemini-3.8-flash` often answers 503 “high demand”. Face detection therefore uses `GEMINI_VISION_MODEL=gemini-3.1-flash-lite` (≈3 s, reliable) and falls back to `GEMINI_MODEL=gemini-3.8-flash`, which stays the model for Bangla headline text.
+- **Face crop fallback:** when Gemini is busy, the default center crop is used; for photos with the person far off-center this can frame the background. A manual “move the crop” control would fix it (possible improvement, not planned).
+- **Dev servers:** if `pnpm dev` is stopped abruptly, `next dev` can be left running and holding port 3000; the next `pnpm dev` then silently serves from the old process. Stop leftover `node` processes before restarting.
 - **Login UI** follows the Superdesign draft *Auth Screen with Navigation and Smooth Transitions* (`aa8ce61d-ceae-4d3e-8d35-065c1c2eb587`, v3) with the fixes listed under Phase 3.
 
 ## Time budget
 
 | | Hours |
 |---|---|
-| P0 tasks | ~27 h (~14 h done) |
+| P0 tasks | ~27 h (~20 h done; left: deploy + ship) |
 | P0 + P1 | ~42 h |
 | All (incl. P2) | ~43 h |
 
@@ -56,8 +63,8 @@ P0 + P1 is more than the realistic working time left in the ~46 h after sleep. P
 | Checkpoint | Target time | If behind |
 |---|---|---|
 | Render pipeline works (end of Phase 1) | 25 Sep, 14:00 | ✅ Locally. Render check moved to 4.5. |
-| Auth + uploads done, **API running on Render** (end of Phase 4) | 25 Sep, 23:00 | Drop face crop (4.4) → center crop only. If Render can't render A3 in 512 MB, move to the Starter plan now, not on Day 2. |
-| **Minimum demo works** (end of Phase 5) | 26 Sep, 11:00 | Drop Phase 7 (headlines) and all P2 tasks |
+| Auth + uploads done, **API running on Render** (end of Phase 4) — ✅ locally, Render deploy still open | 25 Sep, 23:00 | Drop face crop (4.4) → center crop only. If Render can't render A3 in 512 MB, move to the Starter plan now, not on Day 2. |
+| **Minimum demo works** (end of Phase 5) — ✅ locally | 26 Sep, 11:00 | Drop Phase 7 (headlines) and all P2 tasks |
 | Feature freeze | 26 Sep, 18:00 | Ship what works; list the rest in the README |
 
 ---
@@ -141,7 +148,7 @@ Kept from the draft: dark navy header with shield icon and "সুরক্ষ�
 | 4.1 | `GenerationLog` model (`posterId`, `model`, `stage`, `latencyMs`, `success`, `costEstimate`) | 15m | P1 | ✅ | Model exists |
 | 4.2 | `POST /api/upload`: multer (memory, 10 MB, image MIME only) → sharp (min resolution, auto-rotate, strip EXIF/GPS) → Cloudinary `uploads/{userId}/` with authenticated delivery | 60m | P0 | ✅ | Phone photo uploads; too-small photo gets a Bangla error |
 | 4.3 | Signed-URL helper for private assets (used by render and download) | 20m | P0 | ✅ | Signed URL loads; unsigned URL is refused |
-| 4.4 | Gemini client (`@google/genai`) + face box: structured JSON, Zod-validated, timeout, center-crop fallback, log to `GenerationLog`; crop stored with the upload | 60m | P1 | ⏸ | Off-center face ends up centered in the frame; with Gemini disabled, center crop is used |
+| 4.4 | Gemini client (`@google/genai`) + face box: structured JSON, Zod-validated, timeout, center-crop fallback, log to `GenerationLog`; crop stored with the upload | 60m | P1 | ✅ | Off-center face ends up centered in the frame; with Gemini disabled, center crop is used |
 | 4.5 | *(from 0.6)* Deploy the **API only** to Render with `render.yaml`; temporarily allow `/api/dev/render-test` there (env flag) to measure A3 time and memory; then turn it off | 45m | P0 | | A3 PNG from Render with correct conjuncts in < 30 s, no out-of-memory restart |
 
 ## Phase 5 — Generation end to end (~6.5 h) · Day 2 morning
@@ -152,15 +159,15 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 5.1 | `Poster` model: `userId`, `templateId`, `formData`, `photos[]` (url + crop), `outputs`, `watermarked`, `status`, `renderVersion`, `editCount`, `errorMessage` | 30m | P0 | | Model exists, `{ userId, createdAt: -1 }` index |
-| 5.2 | Poster form Zod schema in `shared` (name, পদবি, party, optional symbol, union/থানা/জেলা, occasion, headline, 3 photo slots with leader 2 optional) | 30m | P0 | | Same schema used by web form and API |
-| 5.3 | `POST /api/posters`: validate → render 4:5 → upload to `posters/{userId}/` → save poster; status and Bangla error on failure | 90m | P0 | | API call returns a poster with a 4:5 URL in < 30 s |
-| 5.4 | Watermark overlay for free-tier users; `watermarked` flag saved | 20m | P1 | | Free poster has watermark, premium poster doesn't |
-| 5.5 | `GET /api/posters/:id` (owner only, else 404) and `GET /api/posters/:id/download?size=a3|social45`: render A3 on first request, cache URL in `outputs` | 60m | P0 | | A3 downloads at 3508×4961; another user's poster → 404 |
-| 5.6 | Web: template picker page (thumbnails, occasion filter) | 45m | P0 | | Tapping a template opens the form |
-| 5.7 | Web: poster form with 3 labeled photo slots, browser-side downscale, upload progress, previews, Bangla validation messages | 90m | P0 | | Form submits on a phone with real photos |
-| 5.8 | Web: preview page with loading state, error + retry, download buttons (A3, 4:5) | 60m | P0 | | **Minimum demo path works on localhost** |
-| 5.9 | `POST /api/posters/:id/regenerate`: edit text fields → re-render, `editCount++`, clear cached A3 | 45m | P1 | | Changed name appears in the re-rendered poster |
+| 5.1 | `Poster` model: `userId`, `templateId`, `formData`, `photos[]` (url + crop), `outputs`, `watermarked`, `status`, `renderVersion`, `editCount`, `errorMessage` | 30m | P0 | ✅ | Model exists, `{ userId, createdAt: -1 }` index |
+| 5.2 | Poster form Zod schema in `shared` (name, পদবি, party, optional symbol, union/থানা/জেলা, occasion, headline, 3 photo slots with leader 2 optional) | 30m | P0 | ✅ | Same schema used by web form and API |
+| 5.3 | `POST /api/posters`: validate → render 4:5 → upload to `posters/{userId}/` → save poster; status and Bangla error on failure | 90m | P0 | ✅ | API call returns a poster with a 4:5 URL in < 30 s |
+| 5.4 | Watermark overlay for free-tier users; `watermarked` flag saved | 20m | P1 | ✅ | Free poster has watermark, premium poster doesn't |
+| 5.5 | `GET /api/posters/:id` (owner only, else 404) and `GET /api/posters/:id/download?size=a3|social45`: render A3 on first request, cache URL in `outputs` | 60m | P0 | ✅ | A3 downloads at 3508×4961; another user's poster → 404 |
+| 5.6 | Web: template picker page (thumbnails, occasion filter) | 45m | P0 | ✅ | Tapping a template opens the form |
+| 5.7 | Web: poster form with 3 labeled photo slots, browser-side downscale, upload progress, previews, Bangla validation messages | 90m | P0 | ✅ | Form submits on a phone with real photos |
+| 5.8 | Web: preview page with loading state, error + retry, download buttons (A3, 4:5) | 60m | P0 | ✅ | **Minimum demo path works on localhost** |
+| 5.9 | `POST /api/posters/:id/regenerate`: edit text fields → re-render, `editCount++`, clear cached A3 | 45m | P1 | ✅ | Changed name appears in the re-rendered poster |
 
 ## Phase 6 — Quotas & tiers (~3 h) · Day 2
 
