@@ -1,6 +1,6 @@
 # Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 3).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 4).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -22,7 +22,12 @@
 | 1 — Render pipeline | ✅ Done locally: conjuncts correct, A3 3508×4961 @300 DPI in ~2 s, 4:5 in ~0.6 s, no leaked pages. Not yet measured on Render (4.5). | `ad3f941` |
 | 2 — Templates | ✅ 2 templates (বিজয় দিবস, শোক/স্মরণ) × 2 sizes, 1- and 2-leader variants, seeded to Atlas, `GET /api/templates`, 25 tests. AI backgrounds (2.3) waiting for a Gemini key; CSS gradients used meanwhile. | `0604018` |
 | 3 — Auth | ✅ Phone + one-time code, DB sessions (hashed token, httpOnly cookie, sliding expiry), Origin check, reviewer free/premium logins, `/login` from the Superdesign draft with its fixes, 61 tests + browser run at 390 px. | `a95009b` |
-| 4–10 | Not started. **Next: Phase 4** (uploads, face crop, API deploy to Render). | |
+| 4 — Uploads | 4.1–4.3 ✅: `POST /api/upload` (sharp: real-format check, EXIF rotation, metadata stripped, size rules + low-res warning), private Cloudinary storage with signed URLs (unsigned/altered → 401), verified against the real account; Chromium renders the private photos. 4.4 face detection written with Gemini + default-crop fallback, **not yet run for real** (needs `GEMINI_API_KEY`). 4.5 deploy waiting for a decision. 76 tests. | `d4aeb87` |
+| 5–10 | Not started. **Next: Phase 5** (generation end to end: the minimum demo). | |
+
+**Open decisions:**
+- **Gemini key:** add `GEMINI_API_KEY` to `apps/api/.env` to turn on face detection (4.4, then test with a real face photo), AI backgrounds (2.3) and headline suggestions (Phase 7). Without it all three fall back gracefully.
+- **Render deploy (4.5):** deploy the API now to measure A3 rendering within the free tier's 512 MB, or wait until Phase 10 and accept that risk. The user prefers localhost for now.
 
 **Waiting for review:** the *Expanded Template Library — Dashboard* Superdesign draft (`6a21b930`, listed in `design-prompt.md`) is to be fetched and checked against the scope before task 5.6 (template picker), the same way the login draft was.
 
@@ -42,7 +47,7 @@
 
 | | Hours |
 |---|---|
-| P0 tasks | ~27 h (~13 h done) |
+| P0 tasks | ~27 h (~14 h done) |
 | P0 + P1 | ~42 h |
 | All (incl. P2) | ~43 h |
 
@@ -133,10 +138,10 @@ Kept from the draft: dark navy header with shield icon and "সুরক্ষ�
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 4.1 | `GenerationLog` model (`posterId`, `model`, `stage`, `latencyMs`, `success`, `costEstimate`) | 15m | P1 | | Model exists |
-| 4.2 | `POST /api/upload`: multer (memory, 10 MB, image MIME only) → sharp (min resolution, auto-rotate, strip EXIF/GPS) → Cloudinary `uploads/{userId}/` with authenticated delivery | 60m | P0 | | Phone photo uploads; too-small photo gets a Bangla error |
-| 4.3 | Signed-URL helper for private assets (used by render and download) | 20m | P0 | | Signed URL loads; unsigned URL is refused |
-| 4.4 | Gemini client (`@google/genai`) + face box: structured JSON, Zod-validated, timeout, center-crop fallback, log to `GenerationLog`; crop stored with the upload | 60m | P1 | | Off-center face ends up centered in the frame; with Gemini disabled, center crop is used |
+| 4.1 | `GenerationLog` model (`posterId`, `model`, `stage`, `latencyMs`, `success`, `costEstimate`) | 15m | P1 | ✅ | Model exists |
+| 4.2 | `POST /api/upload`: multer (memory, 10 MB, image MIME only) → sharp (min resolution, auto-rotate, strip EXIF/GPS) → Cloudinary `uploads/{userId}/` with authenticated delivery | 60m | P0 | ✅ | Phone photo uploads; too-small photo gets a Bangla error |
+| 4.3 | Signed-URL helper for private assets (used by render and download) | 20m | P0 | ✅ | Signed URL loads; unsigned URL is refused |
+| 4.4 | Gemini client (`@google/genai`) + face box: structured JSON, Zod-validated, timeout, center-crop fallback, log to `GenerationLog`; crop stored with the upload | 60m | P1 | ⏸ | Off-center face ends up centered in the frame; with Gemini disabled, center crop is used |
 | 4.5 | *(from 0.6)* Deploy the **API only** to Render with `render.yaml`; temporarily allow `/api/dev/render-test` there (env flag) to measure A3 time and memory; then turn it off | 45m | P0 | | A3 PNG from Render with correct conjuncts in < 30 s, no out-of-memory restart |
 
 ## Phase 5 — Generation end to end (~6.5 h) · Day 2 morning
