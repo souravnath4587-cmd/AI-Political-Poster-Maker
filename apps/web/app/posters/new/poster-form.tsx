@@ -5,7 +5,7 @@ import { Camera, FileText, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   PHOTO_FIELD_KIND,
   posterTextSchema,
@@ -16,6 +16,7 @@ import {
 import { AppHeader } from '@/components/app-header';
 import { QuotaCard } from '@/components/quota-card';
 import { FormAlert } from '@/components/auth/form-alert';
+import { HeadlineSuggestions } from '@/components/poster/headline-suggestions';
 import { PhotoSlot } from '@/components/poster/photo-slot';
 import { PosterTextFields, type PosterTextForm } from '@/components/poster/poster-text-fields';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,8 @@ export function PosterForm() {
     resolver: zodResolver(posterTextSchema),
     mode: 'onTouched',
   });
+  // useWatch (not form.watch) so the React Compiler can still optimize this component.
+  const headline = useWatch({ control: form.control, name: 'headline' });
 
   if (!templateId || template.isError) {
     return (
@@ -180,6 +183,25 @@ export function PosterForm() {
             register={form.register}
             watch={form.watch}
             errors={form.formState.errors}
+            afterHeadline={
+              <HeadlineSuggestions
+                templateId={templateId}
+                getContext={() => {
+                  const v = form.getValues();
+                  return {
+                    name: v.name,
+                    designation: v.designation,
+                    organization: v.organization,
+                    location: v.location,
+                    leader1Name: v.leader1Name,
+                  };
+                }}
+                onPick={(headline) =>
+                  form.setValue('headline', headline, { shouldValidate: true, shouldDirty: true })
+                }
+                current={headline}
+              />
+            }
             afterOrganization={
               hasSymbol ? <div className="pt-2">{slot('partySymbol')}</div> : undefined
             }

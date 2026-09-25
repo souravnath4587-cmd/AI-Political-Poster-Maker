@@ -1,11 +1,14 @@
 import type { UserPlan } from './auth';
 
-export type QuotaKind = 'posters' | 'regenerations';
+export type QuotaKind = 'posters' | 'regenerations' | 'headlines';
 
-/** Daily limits per plan (project-scope §12). */
+/**
+ * Daily limits per plan (project-scope §12). Headline suggestions have their own limit on both
+ * plans, only to cap Gemini cost.
+ */
 export const QUOTA_LIMITS: Record<UserPlan, Record<QuotaKind, number>> = {
-  free: { posters: 3, regenerations: 2 },
-  premium: { posters: 10, regenerations: 5 },
+  free: { posters: 3, regenerations: 2, headlines: 20 },
+  premium: { posters: 10, regenerations: 5, headlines: 20 },
 };
 
 /** Bangladesh has no daylight saving time: always UTC+6. */
@@ -34,6 +37,7 @@ export interface QuotaDto {
   date: string;
   posters: QuotaCount;
   regenerations: QuotaCount;
+  headlines: QuotaCount;
   /** ISO time of the next reset (Dhaka midnight). */
   resetsAt: string;
 }

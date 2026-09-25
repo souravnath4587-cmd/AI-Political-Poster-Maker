@@ -24,7 +24,7 @@ async function ensureCounter(userId: Types.ObjectId, date: string): Promise<void
   try {
     await UsageCounter.updateOne(
       { userId, date },
-      { $setOnInsert: { posters: 0, regenerations: 0 } },
+      { $setOnInsert: { posters: 0, regenerations: 0, headlines: 0 } },
       { upsert: true },
     );
   } catch (err) {
@@ -47,7 +47,8 @@ export async function reserveQuota(
   await ensureCounter(user._id, date);
 
   const updated = await UsageCounter.findOneAndUpdate(
-    { userId: user._id, date, [kind]: { $lt: limit } },
+    // "Not >= limit" also matches rows created before this counter existed (field missing).
+    { userId: user._id, date, [kind]: { $not: { $gte: limit } } },
     { $inc: { [kind]: 1 } },
     { returnDocument: 'after' },
   ).lean();
@@ -98,6 +99,7 @@ export async function getQuota(user: UserDoc, now: Date = new Date()): Promise<Q
     date,
     posters: count('posters'),
     regenerations: count('regenerations'),
+    headlines: count('headlines'),
     resetsAt: nextDhakaMidnight(now).toISOString(),
   };
 }

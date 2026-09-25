@@ -1,6 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 
-/** One row per user per Dhaka day: how many posters and regenerations were used. */
+/** One row per user per Dhaka day: posters, regenerations and headline suggestions used. */
 const usageCounterSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -8,6 +8,7 @@ const usageCounterSchema = new Schema(
     date: { type: String, required: true },
     posters: { type: Number, default: 0, min: 0 },
     regenerations: { type: Number, default: 0, min: 0 },
+    headlines: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true },
 );

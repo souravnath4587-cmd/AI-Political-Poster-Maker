@@ -31,6 +31,8 @@ interface PosterTextFieldsProps {
   errors: FieldErrors<PosterTextForm>;
   /** Rendered right after the organization field (the party symbol upload in the form). */
   afterOrganization?: React.ReactNode;
+  /** Rendered right after the headline field (AI suggestions). */
+  afterHeadline?: React.ReactNode;
 }
 
 function fieldError(code: string | undefined, field: TextField): string | null {
@@ -48,6 +50,7 @@ export function PosterTextFields({
   watch,
   errors,
   afterOrganization,
+  afterHeadline,
 }: PosterTextFieldsProps) {
   const shown = new Set(fields);
   const main = MAIN_ORDER.filter((f) => shown.has(f));
@@ -103,6 +106,7 @@ export function PosterTextFields({
           )}
         </div>
         {field === 'organization' && afterOrganization}
+        {field === 'headline' && afterHeadline}
       </div>
     );
   };

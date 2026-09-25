@@ -8,6 +8,7 @@ import { errorHandler, notFound } from './middleware/errorHandler';
 import { originCheck } from './middleware/originCheck';
 import { authRouter } from './routes/auth';
 import { devRouter } from './routes/dev';
+import { headlinesRouter } from './routes/headlines';
 import { healthRouter } from './routes/health';
 import { postersRouter } from './routes/posters';
 import { quotaRouter } from './routes/quota';
@@ -40,6 +41,7 @@ export function createApp() {
   app.use('/api/upload', uploadRouter);
   app.use('/api/posters', postersRouter);
   app.use('/api/quota', quotaRouter);
+  app.use('/api/headlines', headlinesRouter);
   if (!isProduction) app.use('/api/dev', devRouter);
 
   app.use(notFound);

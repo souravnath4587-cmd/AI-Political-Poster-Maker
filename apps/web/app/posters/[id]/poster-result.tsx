@@ -5,7 +5,7 @@ import { CheckCircle2, Download, Loader2, Pencil, Printer, Smartphone } from 'lu
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   posterTextSchema,
   toBanglaDigits,
@@ -15,6 +15,7 @@ import {
 } from '@app/shared';
 import { AppHeader } from '@/components/app-header';
 import { FormAlert } from '@/components/auth/form-alert';
+import { HeadlineSuggestions } from '@/components/poster/headline-suggestions';
 import { PosterTextFields, type PosterTextForm } from '@/components/poster/poster-text-fields';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/messages';
@@ -165,6 +166,8 @@ function EditPanel({ poster, onDone }: { poster: PosterDto; onDone: () => void }
     defaultValues: poster.text as PosterTextForm,
     mode: 'onTouched',
   });
+  // useWatch (not form.watch) so the React Compiler can still optimize this component.
+  const headline = useWatch({ control: form.control, name: 'headline' });
 
   if (!template.data) {
     return (
@@ -187,6 +190,25 @@ function EditPanel({ poster, onDone }: { poster: PosterDto; onDone: () => void }
         register={form.register}
         watch={form.watch}
         errors={form.formState.errors}
+        afterHeadline={
+          <HeadlineSuggestions
+            templateId={poster.template.id}
+            getContext={() => {
+              const v = form.getValues();
+              return {
+                name: v.name,
+                designation: v.designation,
+                organization: v.organization,
+                location: v.location,
+                leader1Name: v.leader1Name,
+              };
+            }}
+            onPick={(headline) =>
+              form.setValue('headline', headline, { shouldValidate: true, shouldDirty: true })
+            }
+            current={headline}
+          />
+        }
       />
       {regenerate.isError && <FormAlert>{errorMessage(regenerate.error)}</FormAlert>}
       <div className="flex gap-3">

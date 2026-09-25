@@ -47,10 +47,13 @@ export function errorMessage(error: unknown): string {
       return 'পোস্টার তৈরি করা যায়নি। আবার চেষ্টা করুন।';
     case 'TEMPLATE_NOT_FOUND':
       return 'টেমপ্লেটটি পাওয়া যায়নি। অন্য একটি বেছে নিন।';
+    case 'AI_UNAVAILABLE':
+      return 'এই মুহূর্তে এআই পরামর্শ পাওয়া যাচ্ছে না। একটু পরে চেষ্টা করুন, বা নিজে লিখুন।';
     case 'POSTER_NOT_FOUND':
       return 'পোস্টারটি পাওয়া যায়নি।';
     case 'QUOTA_EXCEEDED': {
       const limit = typeof details.limit === 'number' ? bn(details.limit) : '';
+      if (details.kind === 'headlines') return 'আজকের এআই পরামর্শের সীমা শেষ। শিরোনাম নিজে লিখুন।';
       return details.kind === 'regenerations'
         ? `আজ ${limit} বার আবার তৈরি করা হয়ে গেছে। রাত ১২টার পর আবার পারবেন।`
         : `আজকের ${limit}টি পোস্টার বানানো শেষ। রাত ১২টার পর আবার বানাতে পারবেন।`;
