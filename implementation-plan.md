@@ -1,6 +1,6 @@
 # Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 9).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (Phase 10 in progress).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -28,7 +28,7 @@
 | 7 — Headlines | ✅ `POST /api/headlines/suggest`: 3–5 short Bangla headlines per occasion, using what the user typed (organization, area, names); party-neutral, respectful, no anniversary numbers; cleaned (Bangla only, ≤ 60 chars, no duplicates). 20/day per user through the Phase 6 quota system, refunded on failure; logged. Web: “এআই পরামর্শ” chips under the headline on the form and the edit panel. Real Gemini: 5 suggestions in ~2–3 s. 109 tests. | `8c4e924` |
 | 8 — History & guardrails | ✅ History page with paging (`?before=` cursor), A3/4:5 downloads and in-card delete confirmation; `DELETE /api/posters/:id` removes the poster, its images and source photos no other poster uses. Rate limits (in-memory, per IP / phone / session) on login codes, code checks, uploads, poster writes and suggestions. Keyword blocklist on poster text, suggestion context and suggestions; the form marks the field. Terms page finalized. 132 tests; checked in the browser. | `153119d` |
 | 9 — Polish | ✅ except the real-phone check. Emulated phone pass at 360×780 with touch on every page: no sideways scrolling, every tap target ≥ 40 px (13 were smaller: back arrow, logout, reviewer buttons, inline links, suggestion chips, history buttons…). No English visible to users; Bangla messages for every API error code. Render checks now in `pnpm test` with real Chromium (2 templates × 2 sizes × 3 variants + page leaks). Free reviewer account emptied of test data. 145 tests. | `d967842` |
-| 10 — Ship & submit | Not started. **Next.** | |
+| 10 — Ship & submit | In progress. Done without external services: production builds of API and web; the API bundle run in production mode against Atlas, Cloudinary and Gemini (health, `/api/dev` hidden, JSON logs, full poster flow: upload → poster in 7 s → A3 link in 7 s → delete); `render.yaml` lists every setting (Render generates `OTP_PEPPER`); README; 3 sample posters in `docs/samples`. Fixed: empty `KEY=` lines in `.env` (copied from the example) made the API refuse to start. **Waiting for the owner:** push to GitHub, Render Blueprint, Vercel project, demo video, real-phone check, submission. | uncommitted |
 
 **Open decisions and follow-ups:**
 - **Render deploy (4.5):** deploy the API now to measure A3 rendering within the free tier's 512 MB, or wait until Phase 10 and accept that risk. The user prefers localhost for now. This is the last open P0 item before shipping.
@@ -68,6 +68,13 @@
 - **One helper** (`services/gemini.ts`) makes every Gemini call: structured JSON, model fallback within a time budget.
 - **Face crop fallback:** when Gemini is busy, the default center crop is used; for photos with the person far off-center this can frame the background. A manual “move the crop” control would fix it (see after the deadline).
 - **Headline length:** the prompt asks for ≤ 40 characters, but up to 60 are accepted, since Bangla vowel signs count as characters and natural 5–6 word headlines run 41–50.
+
+*Deployment*
+- **Empty settings count as unset:** `KEY=` lines copied from `.env.example` are ignored instead of failing validation (an empty `OTP_PEPPER=` had stopped the API from starting).
+- **`render.yaml` holds every non-secret setting**; secrets are entered in the Render dashboard, and Render generates `OTP_PEPPER`.
+- **`OTP_DEV_MODE=true` in production (owner's decision):** anyone can log in with any number for the demo; the README lists this as a known limitation. Switch to `false` to allow only the reviewer numbers.
+- **`API_ORIGIN` must be set in Vercel before the first build:** the `/api` rewrite is compiled into the build.
+- **Sample posters use the placeholder silhouettes**, not photos of real people, so the repo never shows a real person on a political poster.
 
 *Quotas and guardrails*
 - **Quota counts come from `GET /api/quota`**, not `/auth/me` as planned: `/me` is cached for session checks, while the counts change after every poster.
@@ -235,14 +242,14 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 
 **— Feature freeze 26 Sep 18:00 —**
 
-## Phase 10 — Ship & submit (~4 h) · Day 2 evening
+## Phase 10 — Ship & submit (~4 h) · Day 2 evening — in progress
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
 | 10.1 | Deploy web to Vercel (Root Directory `apps/web`, `API_ORIGIN` = Render URL). Render env: `APP_ORIGIN`, `MONGODB_URI`, Cloudinary keys, `OTP_PEPPER`, reviewer numbers + code, `GEMINI_API_KEY` (+ model names), `CHROME_NO_SANDBOX=true`; decide `OTP_DEV_MODE` (needed for non-reviewer logins without an SMS provider, but lets anyone log in as any number). `DNS_SERVERS` not needed there. Seed templates and reviewer users on the production database; Atlas network access; confirm `/api/dev/*` is not mounted | 45m | P0 | | Production URL works in a private window |
 | 10.2 | Run the acceptance checklist (`project-scope.md` §9) on a real phone; fix blockers only | 45m | P0 | | All P0 items pass; failures noted |
-| 10.3 | README: what it is, architecture diagram, why Option B, why DB sessions, setup (`pnpm dev`, `.env.example`, `DNS_SERVERS` note), reviewer access (free/premium test numbers), quota rules, cut list, known limitations (starting blocklist, in-memory rate limits for one instance, face-crop fallback, dev-mode logins), next steps | 90m | P0 | | A new reader can log in and run it locally |
-| 10.4 | Commit 2–3 sample posters; record a 1–2 min demo video | 45m | P0 | | Files in repo; video link in README |
+| 10.3 | README: what it is, architecture diagram, why Option B, why DB sessions, setup (`pnpm dev`, `.env.example`, `DNS_SERVERS` note), reviewer access (free/premium test numbers), quota rules, cut list, known limitations (starting blocklist, in-memory rate limits for one instance, face-crop fallback, dev-mode logins), next steps | 90m | P0 | ✅ | A new reader can log in and run it locally. *Live URL and video link still to be added.* |
+| 10.4 | Commit 2–3 sample posters; record a 1–2 min demo video | 45m | P0 | | Files in repo; video link in README. *Samples ✅ in `docs/samples` (placeholder photos, no real people); video pending.* |
 | 10.5 | Wake the Render backend, final smoke test, submit | 15m | P0 | | Submitted before 23:59 |
 
 ---

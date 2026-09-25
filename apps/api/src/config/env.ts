@@ -102,7 +102,12 @@ const envSchema = z
     }
   });
 
-const parsed = envSchema.safeParse(process.env);
+// `KEY=` with no value (as copied from .env.example) means "not set", not an empty string;
+// otherwise optional settings like OTP_PEPPER would fail their length checks.
+const setValues = Object.fromEntries(
+  Object.entries(process.env).filter(([, value]) => value !== undefined && value.trim() !== ''),
+);
+const parsed = envSchema.safeParse(setValues);
 
 if (!parsed.success) {
   console.error('Invalid environment variables:\n' + z.prettifyError(parsed.error));
