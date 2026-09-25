@@ -5,6 +5,13 @@ import nextTs from 'eslint-config-next/typescript';
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Images are private, signed Cloudinary URLs or API thumbnails that the server already sizes;
+      // next/image optimization would add a proxy hop without benefit.
+      '@next/next/no-img-element': 'off',
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

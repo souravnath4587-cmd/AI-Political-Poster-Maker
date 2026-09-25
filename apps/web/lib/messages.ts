@@ -1,5 +1,6 @@
-import { toBanglaDigits } from '@app/shared';
+import { toBanglaDigits, type PhotoField } from '@app/shared';
 import { ApiError } from './api';
+import { PHOTO_FIELD_LABELS } from './labels';
 
 const bn = toBanglaDigits;
 
@@ -8,7 +9,47 @@ export function errorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return 'কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।';
 
   const { code, details } = error;
+  const field =
+    typeof details.field === 'string' && details.field in PHOTO_FIELD_LABELS
+      ? PHOTO_FIELD_LABELS[details.field as PhotoField]
+      : null;
+
   switch (code) {
+    // Uploads
+    case 'NO_FILE':
+      return 'একটি ছবি বেছে নিন।';
+    case 'FILE_TOO_LARGE':
+      return 'ছবিটি অনেক বড়। ১০ মেগাবাইটের কম ছবি দিন।';
+    case 'UNSUPPORTED_IMAGE':
+      return 'এই ধরনের ফাইল চলবে না। JPG, PNG বা WebP ছবি দিন।';
+    case 'IMAGE_TOO_SMALL': {
+      const min = typeof details.minSide === 'number' ? bn(details.minSide) : '৪০০';
+      return `ছবিটি খুব ছোট। অন্তত ${min} পিক্সেলের ছবি দিন।`;
+    }
+    case 'STORAGE_UNAVAILABLE':
+    case 'STORAGE_ERROR':
+      return 'ছবি সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।';
+
+    // Posters
+    case 'PHOTO_REQUIRED':
+      return field ? `"${field}" ছবিটি দিন।` : 'প্রয়োজনীয় সব ছবি দিন।';
+    case 'PHOTO_NOT_FOUND':
+      return field
+        ? `"${field}" ছবিটি আবার আপলোড করুন।`
+        : 'একটি ছবি পাওয়া যায়নি। আবার আপলোড করুন।';
+    case 'PHOTO_WRONG_KIND':
+      return field ? `"${field}" ঘরে ভুল ছবি দেওয়া হয়েছে।` : 'একটি ছবি ভুল ঘরে দেওয়া হয়েছে।';
+    case 'FIELD_REQUIRED':
+      return 'আপনার নাম ও পদবি লিখুন।';
+    case 'TEXT_TOO_LONG':
+      return 'কোনো একটি লেখা বেশি লম্বা হয়েছে। একটু ছোট করুন।';
+    case 'RENDER_FAILED':
+      return 'পোস্টার তৈরি করা যায়নি। আবার চেষ্টা করুন।';
+    case 'TEMPLATE_NOT_FOUND':
+      return 'টেমপ্লেটটি পাওয়া যায়নি। অন্য একটি বেছে নিন।';
+    case 'POSTER_NOT_FOUND':
+      return 'পোস্টারটি পাওয়া যায়নি।';
+
     case 'INVALID_PHONE':
       return 'সঠিক মোবাইল নম্বর দিন (যেমন ০১৭১২৩৪৫৬৭৮)।';
     case 'CODE_INVALID': {

@@ -100,10 +100,18 @@ function effectCss(el: TextElement): string {
   }
 }
 
+export interface BuildOptions {
+  /** Free-tier mark in the bottom-right corner (on the light footer panel of every template). */
+  watermark?: boolean;
+}
+
+export const WATERMARK_TEXT = 'পোস্টার মেকার · ফ্রি সংস্করণ';
+
 export function buildPosterHtml(
   config: LayoutConfig,
   size: OutputSize,
   content: PosterContent,
+  options: BuildOptions = {},
 ): PosterHtml {
   const layout = config.sizes[size];
 
@@ -208,15 +216,18 @@ html,body{width:100vw;height:100vh;overflow:hidden;}
 .fit>div{width:100%;}
 .photo{overflow:hidden;background:#cfd8dc;}
 .photo img{display:block;width:100%;height:100%;}
+.watermark{position:absolute;right:2vw;bottom:0.8vw;z-index:1000;font-family:'${FONT_FAMILIES.body}';font-weight:600;font-size:1.6vw;color:rgba(0,0,0,0.45);}
 </style>
 </head>
 <body>
 <main class="poster">
 ${backgroundImage}${backgroundLayers}
 ${elements}
+${options.watermark ? `<div class="watermark" data-el="watermark">${WATERMARK_TEXT}</div>` : ''}
 </main>
 </body>
 </html>`;
 
+  if (options.watermark) fonts.add(FONT_FAMILIES.body);
   return { html, requiredFonts: [...fonts] };
 }
