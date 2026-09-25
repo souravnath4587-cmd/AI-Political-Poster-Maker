@@ -1,6 +1,6 @@
 # Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 6).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (after Phase 7).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -25,7 +25,8 @@
 | 4 — Uploads | 4.1–4.3 ✅: `POST /api/upload` (sharp: real-format check, EXIF rotation, metadata stripped, size rules + low-res warning), private Cloudinary storage with signed URLs (unsigned/altered → 401), verified against the real account; Chromium renders the private photos. 4.4 ✅ face detection verified with the real key: `gemini-3.1-flash-lite` (prompt limited to the face, “do not guess”, confidence ≥ 0.6) with `gemini-3.8-flash` as busy fallback, 10 s budget, default crop on any failure. 4.5 deploy waiting for a decision. 76 tests. | `d4aeb87`, `1388a30` |
 | 5 — Generation | ✅ **Minimum demo works on localhost**, verified end to end in headless Chrome at 390 px: login → dashboard → form (validation, 3 uploads in ~5 s with face detection) → poster in ~7 s → A3 download 3508×4961 @300 DPI (~19 s first time) → edit + regenerate → history. API: create/read/list/download/regenerate with owner-only access, photo ownership + kind checks, watermark for free users, A3 rendered on first download and cached, `?format=json` download links; 57 API tests. Web: dashboard, poster form (photo slots with progress, face badge, low-res warning), result page with downloads and text editing. | `b426595` |
 | 6 — Quotas | ✅ Free 3 posters + 2 regenerations/day, premium 10 + 5, reset at Dhaka midnight (18:00 UTC). Counter created first, then one conditional `$inc` below the limit (no race on the first request of the day); reserve-then-refund around render/save, so failed renders and invalid input cost nothing; re-downloads free. `GET /api/quota`; quota card on dashboard, form (submit blocked at the limit) and result page. 83 tests incl. 5 and 6 parallel requests. | `6e9a6f6` |
-| 7–10 | Not started. **Next: Phase 7** (headline suggestions). | |
+| 7 — Headlines | ✅ `POST /api/headlines/suggest`: 3–5 short Bangla headlines per occasion, using what the user typed (organization, area, names); party-neutral, respectful, no anniversary numbers; cleaned (Bangla only, ≤ 60 chars, no duplicates). 20/day per user through the Phase 6 quota system, refunded on failure; logged. Web: “এআই পরামর্শ” chips under the headline on the form and the edit panel. Real Gemini: 5 suggestions in ~2–3 s. 109 tests. | `8c4e924` |
+| 8–10 | Not started. **Next: Phase 8** (history & guardrails). | |
 
 **Open decisions:**
 - **Gemini key:** ✅ set. Face detection (4.4) is on; AI backgrounds (2.3) and headline suggestions (Phase 7) can now use it.
@@ -51,6 +52,8 @@
 - **Dev servers:** if `pnpm dev` is stopped abruptly, `next dev` can be left running and holding port 3000; the next `pnpm dev` then silently serves from the old process. Stop leftover `node` processes before restarting.
 - **Quota counts come from `GET /api/quota`**, not `/auth/me` as planned: `/me` is cached for session checks, while the counts change after every poster.
 - **API tests run in worker threads, 2 at a time:** with child processes, Node on Windows sometimes aborted at process exit (0xC0000409, a libuv handle-closing assertion), and each file starts its own MongoDB.
+- **Gemini calls share one helper** (`services/gemini.ts`: structured JSON, model fallback within a time budget). Headlines use `gemini-3.1-flash-lite` first too: `gemini-3.8-flash` was busy or hung in most test calls, and the lite model writes good Bangla headlines in ~2–3 s.
+- **Headline length:** the prompt asks for ≤ 40 characters, but up to 60 are accepted, since Bangla vowel signs count as characters and natural 5–6 word headlines run 41–50.
 - **Login UI** follows the Superdesign draft *Auth Screen with Navigation and Smooth Transitions* (`aa8ce61d-ceae-4d3e-8d35-065c1c2eb587`, v3) with the fixes listed under Phase 3.
 
 ## Time budget
@@ -187,8 +190,8 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 7.1 | `POST /api/headlines/suggest`: Gemini text, structured JSON with 3–5 Bangla headlines per occasion, Zod-validated, 20/day per user, logged | 45m | P1 | | Returns 3–5 suggestions in < 5 s; 21st call → 429 |
-| 7.2 | Web: "AI পরামর্শ" button → suggestion chips that fill the editable headline field | 45m | P1 | | Picking a chip fills the field; user can still edit |
+| 7.1 | `POST /api/headlines/suggest`: Gemini text, structured JSON with 3–5 Bangla headlines per occasion, Zod-validated, 20/day per user, logged | 45m | P1 | ✅ | Returns 3–5 suggestions in < 5 s; 21st call → 429 |
+| 7.2 | Web: "AI পরামর্শ" button → suggestion chips that fill the editable headline field | 45m | P1 | ✅ | Picking a chip fills the field; user can still edit |
 
 ## Phase 8 — History & guardrails (~3.5 h) · Day 2
 
