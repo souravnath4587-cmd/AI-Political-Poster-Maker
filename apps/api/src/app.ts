@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth';
 import { devRouter } from './routes/dev';
 import { healthRouter } from './routes/health';
 import { postersRouter } from './routes/posters';
+import { quotaRouter } from './routes/quota';
 import { templatesRouter } from './routes/templates';
 import { uploadRouter } from './routes/upload';
 
@@ -38,6 +39,7 @@ export function createApp() {
   app.use('/api/templates', templatesRouter);
   app.use('/api/upload', uploadRouter);
   app.use('/api/posters', postersRouter);
+  app.use('/api/quota', quotaRouter);
   if (!isProduction) app.use('/api/dev', devRouter);
 
   app.use(notFound);

@@ -12,6 +12,7 @@ import type {
 } from '@app/shared';
 import { api, ApiError } from './api';
 import { prepareImage } from './image';
+import { QUOTA_QUERY_KEY } from './quota';
 
 export type TemplateDetail = TemplateSummary & { defaults: Record<string, string> };
 
@@ -56,6 +57,8 @@ export function useCreatePoster() {
       queryClient.setQueryData(['poster', poster.id], poster);
       void queryClient.invalidateQueries({ queryKey: ['posters', 'me'] });
     },
+    // Counts change on success, and a QUOTA_EXCEEDED error means ours were stale.
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: QUOTA_QUERY_KEY }),
   });
 }
 
@@ -69,6 +72,8 @@ export function useRegeneratePoster(id: string) {
       queryClient.setQueryData(['poster', poster.id], poster);
       void queryClient.invalidateQueries({ queryKey: ['posters', 'me'] });
     },
+    // Counts change on success, and a QUOTA_EXCEEDED error means ours were stale.
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: QUOTA_QUERY_KEY }),
   });
 }
 

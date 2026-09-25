@@ -19,6 +19,7 @@ import { Template } from '../models/Template';
 import { Upload, type UploadDoc } from '../models/Upload';
 import { effectivePlan, type UserDoc } from '../models/User';
 import { buildPosterHtml, type PosterContent } from '../render/posterHtml';
+import { withQuota } from './quota';
 import { renderPoster } from './render';
 import { signedImageUrl, storeImage, type StoredImage } from './storage';
 
@@ -179,28 +180,31 @@ export async function createPoster(
   const photos = await resolvePhotos(user, config, input.photos);
   const watermark = effectivePlan(user) === 'free';
 
-  // The id is needed before saving so the render log can point at the poster.
-  const posterId = new mongoose.Types.ObjectId();
-  const social45 = await renderAndStore(
-    user,
-    posterId,
-    config,
-    'social45',
-    contentFor(input.text, photos),
-    watermark,
-  );
+  // Input errors above cost nothing; from here a poster counts, unless rendering or saving fails.
+  return withQuota(user, 'posters', async () => {
+    // The id is needed before saving so the render log can point at the poster.
+    const posterId = new mongoose.Types.ObjectId();
+    const social45 = await renderAndStore(
+      user,
+      posterId,
+      config,
+      'social45',
+      contentFor(input.text, photos),
+      watermark,
+    );
 
-  const poster = await Poster.create({
-    _id: posterId,
-    userId: user._id,
-    templateId: template._id,
-    text: input.text,
-    photos,
-    outputs: { social45, a3: null },
-    status: 'completed',
-    watermarked: watermark,
+    const poster = await Poster.create({
+      _id: posterId,
+      userId: user._id,
+      templateId: template._id,
+      text: input.text,
+      photos,
+      outputs: { social45, a3: null },
+      status: 'completed',
+      watermarked: watermark,
+    });
+    return poster.toObject();
   });
-  return poster.toObject();
 }
 
 /** The user's own poster, or 404 (also for other users' posters, so ids can't be probed). */
@@ -231,15 +235,35 @@ export async function regeneratePoster(
 
   // The watermark follows the current plan, so an upgraded user gets a clean poster.
   const watermark = effectivePlan(user) === 'free';
-  const social45 = await renderAndStore(
-    user,
-    poster._id,
-    config,
-    'social45',
-    contentFor(text, photos),
-    watermark,
-  );
 
+  return withQuota(user, 'regenerations', async () => {
+    const social45 = await renderAndStore(
+      user,
+      poster._id,
+      config,
+      'social45',
+      contentFor(text, photos),
+      watermark,
+    );
+    return saveRegenerated(user, poster, { text, photos, social45, watermark });
+  });
+}
+
+async function saveRegenerated(
+  user: UserDoc,
+  poster: PosterDoc,
+  {
+    text,
+    photos,
+    social45,
+    watermark,
+  }: {
+    text: PosterText;
+    photos: PosterPhotoSnapshot[];
+    social45: StoredImage;
+    watermark: boolean;
+  },
+): Promise<PosterDoc> {
   const updated = await Poster.findOneAndUpdate(
     { _id: poster._id, userId: user._id },
     {

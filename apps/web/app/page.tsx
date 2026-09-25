@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { formatBdPhoneLocal, toBanglaDigits } from '@app/shared';
 import { AppHeader } from '@/components/app-header';
+import { QuotaCard } from '@/components/quota-card';
 import { Button } from '@/components/ui/button';
 import { useLogout, useMe } from '@/lib/auth';
 import { OCCASION_LABELS_BN } from '@/lib/labels';
 import { errorMessage } from '@/lib/messages';
 import { useMyPosters, useTemplates } from '@/lib/posters';
+import { useQuota } from '@/lib/quota';
 
 const dateFormat = new Intl.DateTimeFormat('bn-BD', {
   day: 'numeric',
@@ -24,6 +26,7 @@ export default function Dashboard() {
   const logout = useLogout();
   const templates = useTemplates();
   const posters = useMyPosters();
+  const quota = useQuota();
 
   // The cookie existed (proxy.ts let us in) but the session is gone or expired.
   useEffect(() => {
@@ -64,6 +67,8 @@ export default function Dashboard() {
             {premium ? 'প্রিমিয়াম' : 'ফ্রি'} অ্যাকাউন্ট
           </span>
         </section>
+
+        {quota.data && <QuotaCard quota={quota.data} />}
 
         {/* Premium (payments are deferred: admins assign premium for now) */}
         {!premium && (

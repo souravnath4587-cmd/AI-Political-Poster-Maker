@@ -263,3 +263,64 @@ describe('POST /api/posters/:id/regenerate', () => {
     expect(res.body.poster.photos.leader1Photo.uploadId).toBe(newLeader);
   });
 });
+
+describe('daily quota', () => {
+  it('stops a free user after 3 posters, before rendering the 4th', async () => {
+    const { agent, userId } = await login('01712345678');
+    for (let i = 0; i < 3; i++) {
+      await agent
+        .post('/api/posters')
+        .send(await victoryInput(userId))
+        .expect(201);
+    }
+    renderCalls.length = 0;
+
+    const fourth = await agent.post('/api/posters').send(await victoryInput(userId));
+    expect(fourth.status).toBe(429);
+    expect(fourth.body.error).toMatchObject({ code: 'QUOTA_EXCEEDED', kind: 'posters', limit: 3 });
+    expect(renderCalls).toHaveLength(0);
+
+    const { body } = await agent.get('/api/quota').expect(200);
+    expect(body.quota.posters).toEqual({ used: 3, limit: 3, remaining: 0 });
+  });
+
+  it('does not count a failed render or an invalid request', async () => {
+    const { agent, userId } = await login('01712345678');
+    renderShouldFail = true;
+    await agent
+      .post('/api/posters')
+      .send(await victoryInput(userId))
+      .expect(500);
+    renderShouldFail = false;
+    await agent
+      .post('/api/posters')
+      .send({ ...(await victoryInput(userId)), photos: {} })
+      .expect(400);
+
+    const { body } = await agent.get('/api/quota');
+    expect(body.quota.posters.used).toBe(0);
+  });
+
+  it('allows 2 regenerations a day for free users', async () => {
+    const { agent, userId } = await login('01712345678');
+    const input = await victoryInput(userId);
+    const { body } = await agent.post('/api/posters').send(input);
+    const regenerate = () =>
+      agent.post(`/api/posters/${body.poster.id}/regenerate`).send({ text: input.text });
+
+    await regenerate().expect(200);
+    await regenerate().expect(200);
+    const third = await regenerate();
+    expect(third.status).toBe(429);
+    expect(third.body.error).toMatchObject({ code: 'QUOTA_EXCEEDED', kind: 'regenerations' });
+  });
+
+  it('keeps re-downloading free', async () => {
+    const { agent, userId } = await login('01712345678');
+    const { body } = await agent.post('/api/posters').send(await victoryInput(userId));
+    for (let i = 0; i < 5; i++) {
+      await agent.get(`/api/posters/${body.poster.id}/download?size=a3`).expect(302);
+    }
+    expect((await agent.get('/api/quota')).body.quota.posters.used).toBe(1);
+  });
+});

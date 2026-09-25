@@ -14,6 +14,7 @@ import {
   type UploadDto,
 } from '@app/shared';
 import { AppHeader } from '@/components/app-header';
+import { QuotaCard } from '@/components/quota-card';
 import { FormAlert } from '@/components/auth/form-alert';
 import { PhotoSlot } from '@/components/poster/photo-slot';
 import { PosterTextFields, type PosterTextForm } from '@/components/poster/poster-text-fields';
@@ -21,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { PHOTO_FIELD_LABELS } from '@/lib/labels';
 import { errorMessage } from '@/lib/messages';
 import { useCreatePoster, useTemplate } from '@/lib/posters';
+import { useQuota } from '@/lib/quota';
 
 const PEOPLE: PhotoField[] = ['leader1Photo', 'leader2Photo', 'requesterPhoto'];
 
@@ -29,6 +31,8 @@ export function PosterForm() {
   const templateId = useSearchParams().get('template');
   const template = useTemplate(templateId);
   const createPoster = useCreatePoster();
+  const quota = useQuota();
+  const outOfPosters = quota.data?.posters.remaining === 0;
 
   const [photos, setPhotos] = useState<Partial<Record<PhotoField, UploadDto | null>>>({});
   const [photoErrors, setPhotoErrors] = useState<Partial<Record<PhotoField, string>>>({});
@@ -129,6 +133,8 @@ export function PosterForm() {
 
   return (
     <Shell>
+      {quota.data && <QuotaCard quota={quota.data} compact />}
+
       {/* Chosen template */}
       <section className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <img
@@ -186,10 +192,14 @@ export function PosterForm() {
         <div className="sticky bottom-0 -mx-4 border-t border-slate-200 bg-slate-50/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
           <Button
             type="submit"
-            disabled={createPoster.isPending || uploadingCount > 0}
+            disabled={createPoster.isPending || uploadingCount > 0 || outOfPosters}
             className="h-auto w-full rounded-xl bg-emerald-600 py-4 text-base font-bold text-white shadow-lg shadow-emerald-900/10 hover:bg-emerald-700"
           >
-            {uploadingCount > 0 ? 'ছবি আপলোড হচ্ছে…' : 'পোস্টার তৈরি করুন'}
+            {outOfPosters
+              ? 'আজকের পোস্টার বানানো শেষ'
+              : uploadingCount > 0
+                ? 'ছবি আপলোড হচ্ছে…'
+                : 'পোস্টার তৈরি করুন'}
           </Button>
         </div>
       </form>

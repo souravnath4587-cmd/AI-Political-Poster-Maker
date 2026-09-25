@@ -6,13 +6,20 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { posterTextSchema, type OutputSize, type PosterDto, type PosterText } from '@app/shared';
+import {
+  posterTextSchema,
+  toBanglaDigits,
+  type OutputSize,
+  type PosterDto,
+  type PosterText,
+} from '@app/shared';
 import { AppHeader } from '@/components/app-header';
 import { FormAlert } from '@/components/auth/form-alert';
 import { PosterTextFields, type PosterTextForm } from '@/components/poster/poster-text-fields';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/messages';
 import { downloadPoster, usePoster, useRegeneratePoster, useTemplate } from '@/lib/posters';
+import { useQuota } from '@/lib/quota';
 
 export function PosterResult() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +49,8 @@ export function PosterResult() {
 
 function PosterView({ poster, justCreated }: { poster: PosterDto; justCreated: boolean }) {
   const [editing, setEditing] = useState(false);
+  const quota = useQuota();
+  const regenerationsLeft = quota.data?.regenerations.remaining;
   const [downloading, setDownloading] = useState<OutputSize | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -123,10 +132,17 @@ function PosterView({ poster, justCreated }: { poster: PosterDto; justCreated: b
         <Button
           variant="ghost"
           onClick={() => setEditing(true)}
+          disabled={regenerationsLeft === 0}
           className="h-auto w-full py-3 text-slate-700"
         >
           <Pencil aria-hidden />
-          লেখা পরিবর্তন করে আবার তৈরি করুন
+          {regenerationsLeft === 0
+            ? 'আজ আর আবার তৈরি করা যাবে না'
+            : `লেখা পরিবর্তন করে আবার তৈরি করুন${
+                regenerationsLeft === undefined
+                  ? ''
+                  : ` (আর ${toBanglaDigits(regenerationsLeft)} বার)`
+              }`}
         </Button>
       )}
 

@@ -49,6 +49,12 @@ export function errorMessage(error: unknown): string {
       return 'টেমপ্লেটটি পাওয়া যায়নি। অন্য একটি বেছে নিন।';
     case 'POSTER_NOT_FOUND':
       return 'পোস্টারটি পাওয়া যায়নি।';
+    case 'QUOTA_EXCEEDED': {
+      const limit = typeof details.limit === 'number' ? bn(details.limit) : '';
+      return details.kind === 'regenerations'
+        ? `আজ ${limit} বার আবার তৈরি করা হয়ে গেছে। রাত ১২টার পর আবার পারবেন।`
+        : `আজকের ${limit}টি পোস্টার বানানো শেষ। রাত ১২টার পর আবার বানাতে পারবেন।`;
+    }
 
     case 'INVALID_PHONE':
       return 'সঠিক মোবাইল নম্বর দিন (যেমন ০১৭১২৩৪৫৬৭৮)।';
