@@ -33,8 +33,9 @@ export function PosterResult() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
-      <AppHeader title="আপনার পোস্টার" backHref="/" />
+      <AppHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 py-6 sm:px-6">
+        <h1 className="text-xl font-bold text-slate-900">আপনার পোস্টার</h1>
         {poster.isPending && (
           <Loader2 className="mx-auto size-6 animate-spin text-slate-400" aria-label="লোড হচ্ছে" />
         )}

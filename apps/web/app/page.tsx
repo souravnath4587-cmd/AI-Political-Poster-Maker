@@ -87,7 +87,10 @@ export default function Dashboard() {
 
         {/* Premium (payments are deferred: admins assign premium for now) */}
         {!premium && (
-          <section className="rounded-2xl border border-slate-700 bg-gradient-to-r from-slate-900 to-slate-800 p-4 shadow-lg">
+          <Link
+            href="/plans"
+            className="block rounded-2xl border border-slate-700 bg-gradient-to-r from-slate-900 to-slate-800 p-4 shadow-lg transition-shadow hover:shadow-xl"
+          >
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1">
                 <h2 className="font-bold text-white">প্রিমিয়াম নিন</h2>
@@ -99,7 +102,7 @@ export default function Dashboard() {
                 শীঘ্রই আসছে
               </span>
             </div>
-          </section>
+          </Link>
         )}
 
         {/* Templates */}

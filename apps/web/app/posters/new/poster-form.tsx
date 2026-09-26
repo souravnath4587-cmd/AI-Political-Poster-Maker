@@ -255,8 +255,9 @@ export function PosterForm() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
-      <AppHeader title="নতুন পোস্টার" backHref="/" />
+      <AppHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 pt-6 sm:px-6">
+        <h1 className="text-xl font-bold text-slate-900">নতুন পোস্টার</h1>
         {children}
       </main>
     </div>
