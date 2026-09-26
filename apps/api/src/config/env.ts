@@ -74,7 +74,7 @@ const envSchema = z
     OTP_DEV_MODE: z.stringbool().default(false),
     // Reviewer access: fixed-code logins that never send SMS (seeded by seed-users).
     REVIEWER_FREE_PHONE: optionalBdPhone,
-    REVIEWER_PREMIUM_PHONE: optionalBdPhone,
+    REVIEWER_PRO_PHONE: optionalBdPhone,
     REVIEWER_CODE: z
       .string()
       .regex(new RegExp(`^\\d{${OTP_LENGTH}}$`), `Must be ${OTP_LENGTH} digits`)
@@ -94,11 +94,7 @@ const envSchema = z
     BULKSMSBD_API_URL: z.url().default('https://bulksmsbd.net/api/smsapi'),
   })
   .superRefine((env, ctx) => {
-    const reviewerKeys = [
-      'REVIEWER_FREE_PHONE',
-      'REVIEWER_PREMIUM_PHONE',
-      'REVIEWER_CODE',
-    ] as const;
+    const reviewerKeys = ['REVIEWER_FREE_PHONE', 'REVIEWER_PRO_PHONE', 'REVIEWER_CODE'] as const;
     const reviewerSet = reviewerKeys.filter((key) => env[key]);
     if (reviewerSet.length > 0 && reviewerSet.length < reviewerKeys.length) {
       ctx.addIssue({
@@ -134,9 +130,12 @@ const envSchema = z
 
 // `KEY=` with no value (as copied from .env.example) means "not set", not an empty string;
 // otherwise optional settings like OTP_PEPPER would fail their length checks.
-const setValues = Object.fromEntries(
+const setValues: Record<string, string | undefined> = Object.fromEntries(
   Object.entries(process.env).filter(([, value]) => value !== undefined && value.trim() !== ''),
 );
+// Old name of REVIEWER_PRO_PHONE (the plan used to be called premium); still read so existing
+// deployments keep their reviewer login until the setting is renamed.
+setValues.REVIEWER_PRO_PHONE ??= setValues.REVIEWER_PREMIUM_PHONE;
 const parsed = envSchema.safeParse(setValues);
 
 if (!parsed.success) {
@@ -160,10 +159,10 @@ export const bulkSmsBd =
     : null;
 
 export const reviewer =
-  env.REVIEWER_FREE_PHONE && env.REVIEWER_PREMIUM_PHONE && env.REVIEWER_CODE
+  env.REVIEWER_FREE_PHONE && env.REVIEWER_PRO_PHONE && env.REVIEWER_CODE
     ? {
         freePhone: env.REVIEWER_FREE_PHONE,
-        premiumPhone: env.REVIEWER_PREMIUM_PHONE,
+        proPhone: env.REVIEWER_PRO_PHONE,
         code: env.REVIEWER_CODE,
       }
     : null;

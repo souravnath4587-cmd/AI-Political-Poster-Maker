@@ -125,9 +125,9 @@ describe('POST /api/posters', () => {
     expect(log).toMatchObject({ stage: 'render', success: true, model: 'puppeteer:social45' });
   });
 
-  it('leaves the watermark off for premium users', async () => {
+  it('leaves the watermark off for pro users', async () => {
     const { agent, userId } = await login('01712345678');
-    await User.updateOne({ _id: userId }, { plan: 'premium' });
+    await User.updateOne({ _id: userId }, { plan: 'pro' });
     const res = await agent.post('/api/posters').send(await victoryInput(userId));
     expect(res.body.poster.watermarked).toBe(false);
     expect(renderCalls[0]!.html.includes(WATERMARK_TEXT)).toBe(false);

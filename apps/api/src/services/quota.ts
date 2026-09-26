@@ -46,6 +46,12 @@ export async function reserveQuota(
   const limit = QUOTA_LIMITS[effectivePlan(user, now)][kind];
   await ensureCounter(user._id, date);
 
+  // Unlimited: still counted (for refunds and stats), never refused.
+  if (limit === null) {
+    await UsageCounter.updateOne({ userId: user._id, date }, { $inc: { [kind]: 1 } });
+    return { userId: user._id, date, kind };
+  }
+
   const updated = await UsageCounter.findOneAndUpdate(
     // "Not >= limit" also matches rows created before this counter existed (field missing).
     { userId: user._id, date, [kind]: { $not: { $gte: limit } } },
@@ -91,7 +97,8 @@ export async function getQuota(user: UserDoc, now: Date = new Date()): Promise<Q
 
   const count = (kind: QuotaKind) => {
     const used = row?.[kind] ?? 0;
-    return { used, limit: limits[kind], remaining: Math.max(0, limits[kind] - used) };
+    const limit = limits[kind];
+    return { used, limit, remaining: limit === null ? null : Math.max(0, limit - used) };
   };
 
   return {

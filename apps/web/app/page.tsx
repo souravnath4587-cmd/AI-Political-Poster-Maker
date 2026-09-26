@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   formatBdPhoneLocal,
   occasionTypeSchema,
+  PLAN_PRICE_BDT,
   toBanglaDigits,
   type OccasionType,
 } from '@app/shared';
@@ -14,7 +15,7 @@ import { AppHeader } from '@/components/app-header';
 import { QuotaCard } from '@/components/quota-card';
 import { Button } from '@/components/ui/button';
 import { useLogout, useMe } from '@/lib/auth';
-import { OCCASION_LABELS_BN } from '@/lib/labels';
+import { OCCASION_LABELS_BN, PLAN_LABELS_BN } from '@/lib/labels';
 import { errorMessage } from '@/lib/messages';
 import { useMyPosters, useTemplates } from '@/lib/posters';
 import { useQuota } from '@/lib/quota';
@@ -57,7 +58,7 @@ export default function Dashboard() {
   }
 
   const user = me.data;
-  const premium = user.plan === 'premium';
+  const paid = user.plan !== 'free';
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
@@ -74,28 +75,29 @@ export default function Dashboard() {
           </div>
           <span
             className={
-              premium
+              paid
                 ? 'rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800'
                 : 'rounded-full bg-slate-200 px-3 py-1 text-sm font-semibold text-slate-700'
             }
           >
-            {premium ? 'প্রিমিয়াম' : 'ফ্রি'} অ্যাকাউন্ট
+            {PLAN_LABELS_BN[user.plan]} অ্যাকাউন্ট
           </span>
         </section>
 
         {quota.data && <QuotaCard quota={quota.data} />}
 
-        {/* Premium (payments are deferred: admins assign premium for now) */}
-        {!premium && (
+        {/* Paid plans (payments are deferred: admins assign them for now) */}
+        {!paid && (
           <Link
             href="/plans"
             className="block rounded-2xl border border-slate-700 bg-gradient-to-r from-slate-900 to-slate-800 p-4 shadow-lg transition-shadow hover:shadow-xl"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1">
-                <h2 className="font-bold text-white">প্রিমিয়াম নিন</h2>
+                <h2 className="font-bold text-white">প্রো বা প্রিমিয়াম নিন</h2>
                 <p className="text-xs text-slate-400">
-                  দিনে ১০টি পোস্টার, ওয়াটারমার্ক ছাড়া প্রিন্ট
+                  প্রো মাসে ৳{toBanglaDigits(PLAN_PRICE_BDT.pro)} · প্রিমিয়াম মাসে ৳
+                  {toBanglaDigits(PLAN_PRICE_BDT.premium)}, সব আনলিমিটেড
                 </p>
               </div>
               <span className="shrink-0 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">

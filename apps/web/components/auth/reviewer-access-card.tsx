@@ -16,7 +16,7 @@ interface ReviewerAccessCardProps {
 
 /**
  * Shown only when the API is configured with reviewer numbers: lets reviewers without a
- * Bangladeshi SIM log in as a free or a premium user.
+ * Bangladeshi SIM log in as a free or a pro user.
  */
 export function ReviewerAccessCard({
   options,
@@ -31,7 +31,7 @@ export function ReviewerAccessCard({
   const accounts = reviewer
     ? [
         { label: 'ফ্রি অ্যাকাউন্ট', phone: formatBdPhoneLocal(reviewer.freePhone) },
-        { label: 'প্রিমিয়াম অ্যাকাউন্ট', phone: formatBdPhoneLocal(reviewer.premiumPhone) },
+        { label: 'প্রো অ্যাকাউন্ট', phone: formatBdPhoneLocal(reviewer.proPhone) },
       ]
     : [];
 

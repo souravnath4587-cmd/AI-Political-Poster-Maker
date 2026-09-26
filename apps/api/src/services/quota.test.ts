@@ -48,12 +48,29 @@ describe('reserveQuota', () => {
     });
   });
 
-  it('allows premium users 10 + 5, and treats expired premium as free', async () => {
-    const premium = await makeUser({ plan: 'premium' });
-    expect((await parallel(premium, 12)).ok).toBe(10);
-    expect((await parallel(premium, 7, 'regenerations')).ok).toBe(5);
+  it('allows pro users 10 + 5, and treats expired pro as free', async () => {
+    const pro = await makeUser({ plan: 'pro' });
+    expect((await parallel(pro, 12)).ok).toBe(10);
+    expect((await parallel(pro, 7, 'regenerations')).ok).toBe(5);
 
-    const expired = await makeUser({ plan: 'premium', planExpiresAt: new Date(Date.now() - 1000) });
+    const expired = await makeUser({ plan: 'pro', planExpiresAt: new Date(Date.now() - 1000) });
+    expect((await parallel(expired, 5)).ok).toBe(3);
+  });
+
+  it('never limits premium users but still counts, and treats expired premium as free', async () => {
+    const premium = await makeUser({ plan: 'premium' });
+    expect((await parallel(premium, 25)).ok).toBe(25);
+    expect((await parallel(premium, 8, 'regenerations')).ok).toBe(8);
+
+    const quota = await getQuota(premium);
+    expect(quota.plan).toBe('premium');
+    expect(quota.posters).toEqual({ used: 25, limit: null, remaining: null });
+    expect(quota.regenerations).toEqual({ used: 8, limit: null, remaining: null });
+
+    const expired = await makeUser({
+      plan: 'premium',
+      planExpiresAt: new Date(Date.now() - 1000),
+    });
     expect((await parallel(expired, 5)).ok).toBe(3);
   });
 

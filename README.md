@@ -23,7 +23,7 @@ No Bangladeshi SIM needed. On the login page, use the **রিভিউয়া
 | Account | Phone | Code |
 |---|---|---|
 | Free (3 posters + 2 regenerations a day, watermark) | `01999000001` | `123456` |
-| Premium (10 + 5 a day, no watermark) | `01999000002` | `123456` |
+| Pro (10 + 5 a day, no watermark) | `01999000002` | `123456` |
 
 The first poster after a quiet spell takes a few seconds longer while the API starts Chromium.
 
@@ -81,15 +81,21 @@ Details of every decision and trade-off: [`tech-stack.md`](tech-stack.md),
 
 ## Quotas and tiers
 
-| | Free | Premium |
-|---|---|---|
-| New posters per day | 3 | 10 |
-| Regenerations (text/photo edits) per day | 2 | 5 |
-| AI headline suggestions per day | 20 | 20 |
-| Watermark | Small, bottom-right | None |
+| | Free | Pro | Premium |
+|---|---|---|---|
+| Price (monthly; shown, payments not built yet) | Free | ৳100 / month | ৳150 / month |
+| New posters per day | 3 | 10 | Unlimited |
+| Regenerations (text/photo edits) per day | 2 | 5 | Unlimited |
+| AI headline suggestions per day | 20 | 20 | Unlimited |
+| Watermark | Small, bottom-right | None | None |
 
-Re-downloading an existing poster is always free. Premium is assigned by an admin for now
-(payments are out of scope); an expired premium plan counts as free.
+Re-downloading an existing poster is always free. Pro and Premium are assigned by an admin for
+now (payments are out of scope); an expired paid plan counts as free. "Unlimited" still keeps the
+per-minute abuse limits.
+
+**Upgrading an existing database:** the 10-a-day plan used to be stored as `premium`, which is now
+the unlimited plan. Run `pnpm --filter @app/api db:migrate-plan-pro` once per database *before*
+deploying this version (and never after anyone has been given the new Premium plan).
 
 ## Guardrails
 
@@ -195,7 +201,7 @@ with a full Chrome.
 Scoped for one developer and a two-day deadline (see [`project-scope.md`](project-scope.md)):
 
 - **Campaign templates** — Election Commission rules on campaign posters need checking first.
-- **Payments** (bKash/Nagad) — premium exists but is assigned by an admin.
+- **Payments** (bKash/Nagad) — pro exists but is assigned by an admin.
 - **Admin panel, moderation queue, PDF export, bulk/CSV generation** — managed by scripts for now.
 - **AI-generated backgrounds** — templates use hand-made CSS gradients.
 

@@ -9,6 +9,6 @@ Object.assign(process.env, {
   // Tests make many requests from one IP; rateLimits.test.ts turns this back on.
   RATE_LIMITS_ENABLED: 'false',
   REVIEWER_FREE_PHONE: '01999000001',
-  REVIEWER_PREMIUM_PHONE: '01999000002',
+  REVIEWER_PRO_PHONE: '01999000002',
   REVIEWER_CODE: '123456',
 });

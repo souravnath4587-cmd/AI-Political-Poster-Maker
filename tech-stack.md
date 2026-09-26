@@ -81,7 +81,7 @@
 | Need in this project | Database session | JWT |
 |---|---|---|
 | **Ban a misusing user instantly** (R1: defamation, fake endorsements) | Delete their sessions → logged out on the next request | Token stays valid until expiry unless a denylist is added (which is a DB lookup anyway) |
-| **Premium plan changes take effect immediately** | User is loaded from DB on each request | Stale `plan` claim until token refresh |
+| **Pro plan changes take effect immediately** | User is loaded from DB on each request | Stale `plan` claim until token refresh |
 | **Logout that really logs out** | Session row deleted | Client just forgets the token |
 | **Token theft (XSS)** | httpOnly cookie, opaque value, nothing to decode | Often kept in `localStorage`; needs a refresh-token scheme to be safe |
 | **Complexity** | One collection + one middleware | Access + refresh tokens, rotation, denylist |
@@ -135,7 +135,7 @@ A small **custom session service** (~100 lines) on a Mongoose `Session` model, r
    - Generate a 6-digit code with `crypto.randomInt`, store its hash in `OtpCode`, send it through the `SmsProvider`, then mark older pending codes `superseded`. A failed send marks the row `failed` (doesn't count towards the limits).
    - `SmsProvider` implementations: **`ConsoleSmsProvider`** (`OTP_DEV_MODE=true`, refused in production) and **`BulkSmsBdProvider`** (BulkSMSBD HTTP API).
    - Same answer for every number (no `isNewUser`), so it can't be used to find accounts.
-   - **Reviewer test numbers:** `REVIEWER_FREE_PHONE` / `REVIEWER_PREMIUM_PHONE` + fixed `REVIEWER_CODE` from env; no SMS sent.
+   - **Reviewer test numbers:** `REVIEWER_FREE_PHONE` / `REVIEWER_PRO_PHONE` (old name `REVIEWER_PREMIUM_PHONE` still read) + fixed `REVIEWER_CODE` from env; no SMS sent.
 2. **`POST /api/auth/otp/verify`** `{ phone, code }`
    - Compare hashes with `crypto.timingSafeEqual` against the latest pending code; every attempt is counted atomically; mark the code `verified` on success (single use, also under parallel requests).
    - Upsert the `User` (first login = signup; requires the terms checkbox → `acceptedTermsAt`). A new number with a correct code but no `acceptTerms` gets `TERMS_REQUIRED`; the code stays usable.
@@ -145,7 +145,7 @@ A small **custom session service** (~100 lines) on a Mongoose `Session` model, r
 3. **`requireAuth` middleware** (every protected route)
    - Read `sid` cookie → hash → `Session.findOne({ tokenHash, expiresAt: { $gt: now } })`.
      *(The `expiresAt` check is needed because MongoDB's TTL monitor deletes expired rows only about once a minute.)*
-   - Load the `User` (`.lean()`), apply the premium-expiry rule (`planExpiresAt` passed → treat as free), attach `req.user`.
+   - Load the `User` (`.lean()`), apply the pro-expiry rule (`planExpiresAt` passed → treat as free), attach `req.user`.
    - **Sliding expiry:** if `lastSeenAt` is older than 24 h, push `expiresAt` forward 30 days and update `lastSeenAt` (throttled so most requests are read-only).
 4. **`GET /api/auth/me`** → current user, plan and today's remaining quota.
 5. **`POST /api/auth/logout`** → delete the current session, clear the cookie.
@@ -291,7 +291,7 @@ OTP_PEPPER
 OTP_TTL_SEC=180, OTP_RESEND_COOLDOWN_SEC=60, OTP_MAX_ATTEMPTS=5
 OTP_MAX_PER_PHONE_PER_HOUR=5, OTP_MAX_PER_IP_PER_HOUR=20
 BULKSMSBD_API_KEY, BULKSMSBD_SENDER_ID, BULKSMSBD_API_URL
-REVIEWER_FREE_PHONE, REVIEWER_PREMIUM_PHONE, REVIEWER_CODE
+REVIEWER_FREE_PHONE, REVIEWER_PRO_PHONE, REVIEWER_CODE
 GEMINI_API_KEY
 CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 ```

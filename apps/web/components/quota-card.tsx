@@ -31,12 +31,16 @@ export function QuotaCard({ quota, compact = false }: { quota: QuotaDto; compact
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-slate-800">
-          {done
-            ? `আজকের ${bn(posters.limit)}টি পোস্টার বানানো শেষ`
-            : `আজ আর ${bn(posters.remaining)}টি পোস্টার বানাতে পারবেন`}
+          {posters.remaining === null
+            ? 'আনলিমিটেড পোস্টার বানাতে পারবেন'
+            : done
+              ? `আজকের ${bn(posters.limit ?? 0)}টি পোস্টার বানানো শেষ`
+              : `আজ আর ${bn(posters.remaining)}টি পোস্টার বানাতে পারবেন`}
         </p>
         <p className="text-xs text-slate-500">
-          আবার তৈরি: আর {bn(regenerations.remaining)} বার · রাত ১২টায় আবার পূর্ণ হবে
+          {regenerations.remaining === null
+            ? 'আবার তৈরি: আনলিমিটেড · প্রিমিয়াম প্ল্যান'
+            : `আবার তৈরি: আর ${bn(regenerations.remaining)} বার · রাত ১২টায় আবার পূর্ণ হবে`}
         </p>
       </div>
       {!compact && (
@@ -49,9 +53,13 @@ export function QuotaCard({ quota, compact = false }: { quota: QuotaDto; compact
           <span
             className={cn('block text-lg font-bold', done ? 'text-amber-700' : 'text-emerald-700')}
           >
-            {bn(posters.remaining)}/{bn(posters.limit)}
+            {posters.remaining === null
+              ? '∞'
+              : `${bn(posters.remaining)}/${bn(posters.limit ?? 0)}`}
           </span>
-          <span className="text-[10px] text-slate-500">বাকি</span>
+          <span className="text-[10px] text-slate-500">
+            {posters.remaining === null ? 'সীমা নেই' : 'বাকি'}
+          </span>
         </span>
       )}
     </div>

@@ -8,7 +8,7 @@ const userSchema = new Schema(
     isVerified: { type: Boolean, default: false },
     role: { type: String, enum: userRoleSchema.options, default: 'user' },
     plan: { type: String, enum: userPlanSchema.options, default: 'free' },
-    /** Premium ends at this time; null = no end date. */
+    /** A paid plan (pro/premium) ends at this time; null = no end date. */
     planExpiresAt: { type: Date, default: null },
     /** Set on the first login, when the user accepts the terms of use. */
     acceptedTermsAt: { type: Date, default: null },
@@ -21,13 +21,14 @@ export type UserDoc = InferSchemaType<typeof userSchema> & { _id: mongoose.Types
 export type UserDocument = HydratedDocument<InferSchemaType<typeof userSchema>>;
 export const User = mongoose.model('User', userSchema);
 
-/** Premium counts only until planExpiresAt; checked on every request, no cron job needed. */
+/** Paid plans count only until planExpiresAt; checked on every request, no cron job needed. */
 export function effectivePlan(
   user: Pick<UserDoc, 'plan' | 'planExpiresAt'>,
   now = new Date(),
 ): AuthUser['plan'] {
-  if (user.plan !== 'premium') return 'free';
-  return !user.planExpiresAt || user.planExpiresAt > now ? 'premium' : 'free';
+  const plan = user.plan as AuthUser['plan'];
+  if (plan === 'free') return 'free';
+  return !user.planExpiresAt || user.planExpiresAt > now ? plan : 'free';
 }
 
 export function toAuthUser(user: UserDoc): AuthUser {

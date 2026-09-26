@@ -51,7 +51,7 @@ services:
         sync: false
       - key: REVIEWER_FREE_PHONE
         value: "01999000001"
-      - key: REVIEWER_PREMIUM_PHONE
+      - key: REVIEWER_PRO_PHONE
         value: "01999000002"
       - key: REVIEWER_CODE
         value: "123456"

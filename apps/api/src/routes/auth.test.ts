@@ -300,7 +300,7 @@ describe('POST /api/auth/otp/verify', () => {
     expect(req.body.devCode).toBe('123456');
     expect(await OtpCode.countDocuments()).toBe(0);
 
-    await User.create({ phone: '+8801999000002', plan: 'premium', acceptedTermsAt: new Date() });
+    await User.create({ phone: '+8801999000002', plan: 'pro', acceptedTermsAt: new Date() });
     const wrong = await request(app)
       .post('/api/auth/otp/verify')
       .send({ phone: '01999000002', code: '654321' });
@@ -310,7 +310,7 @@ describe('POST /api/auth/otp/verify', () => {
       .post('/api/auth/otp/verify')
       .send({ phone: '01999000002', code: '১২৩৪৫৬' });
     expect(ok.status).toBe(200);
-    expect(ok.body.user.plan).toBe('premium');
+    expect(ok.body.user.plan).toBe('pro');
   });
 });
 
@@ -350,12 +350,18 @@ describe('sessions', () => {
     expect(after!.expiresAt.getTime()).toBeGreaterThan(before!.expiresAt.getTime());
   });
 
-  it('treats premium as free once planExpiresAt has passed', async () => {
+  it('treats pro as free once planExpiresAt has passed', async () => {
     const { agent } = await login();
-    await User.updateMany({}, { plan: 'premium', planExpiresAt: new Date(Date.now() - 1000) });
+    await User.updateMany({}, { plan: 'pro', planExpiresAt: new Date(Date.now() - 1000) });
     expect((await agent.get('/api/auth/me')).body.user.plan).toBe('free');
 
     await User.updateMany({}, { planExpiresAt: new Date(Date.now() + 3600_000) });
+    expect((await agent.get('/api/auth/me')).body.user.plan).toBe('pro');
+  });
+
+  it('reports the premium plan while it lasts', async () => {
+    const { agent } = await login();
+    await User.updateMany({}, { plan: 'premium', planExpiresAt: new Date(Date.now() + 3600_000) });
     expect((await agent.get('/api/auth/me')).body.user.plan).toBe('premium');
   });
 
@@ -408,7 +414,7 @@ describe('GET /api/auth/options', () => {
       devMode: true,
       resendAfterSec: 60,
       otpTtlSec: 180,
-      reviewer: { freePhone: '+8801999000001', premiumPhone: '+8801999000002', code: '123456' },
+      reviewer: { freePhone: '+8801999000001', proPhone: '+8801999000002', code: '123456' },
     });
   });
 });

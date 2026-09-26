@@ -23,6 +23,6 @@ export type HeadlineSuggestInput = z.input<typeof headlineSuggestSchema>;
 
 export interface HeadlineSuggestResponse {
   suggestions: string[];
-  /** Suggestion requests left today. */
-  remaining: number;
+  /** Suggestion requests left today; null = unlimited. */
+  remaining: number | null;
 }

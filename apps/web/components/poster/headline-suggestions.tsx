@@ -79,8 +79,9 @@ export function HeadlineSuggestions({
       )}
       {result && (
         <p className="text-[11px] text-slate-400">
-          পছন্দের পরামর্শে চাপ দিন, তারপর চাইলে বদলে নিন · আজ আর {toBanglaDigits(result.remaining)}{' '}
-          বার পরামর্শ নেওয়া যাবে
+          পছন্দের পরামর্শে চাপ দিন, তারপর চাইলে বদলে নিন
+          {result.remaining !== null &&
+            ` · আজ আর ${toBanglaDigits(result.remaining)} বার পরামর্শ নেওয়া যাবে`}
         </p>
       )}
       {suggest.isError && <p className="text-xs text-red-600">{errorMessage(suggest.error)}</p>}

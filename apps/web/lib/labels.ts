@@ -1,4 +1,4 @@
-import type { OccasionType, PhotoField, TextField } from '@app/shared';
+import type { OccasionType, PhotoField, TextField, UserPlan } from '@app/shared';
 
 export const TEXT_FIELD_LABELS: Record<TextField, string> = {
   headline: 'শিরোনাম',
@@ -38,4 +38,10 @@ export const OCCASION_LABELS_BN: Record<OccasionType, string> = {
   election: 'নির্বাচনী প্রচার',
   greeting: 'শুভেচ্ছা',
   festival: 'উৎসব',
+};
+
+export const PLAN_LABELS_BN: Record<UserPlan, string> = {
+  free: 'ফ্রি',
+  pro: 'প্রো',
+  premium: 'প্রিমিয়াম',
 };

@@ -25,7 +25,7 @@ function lifetimeText(sec: number): string {
 }
 
 export function isReviewerPhone(phone: string): boolean {
-  return reviewer !== null && (phone === reviewer.freePhone || phone === reviewer.premiumPhone);
+  return reviewer !== null && (phone === reviewer.freePhone || phone === reviewer.proPhone);
 }
 
 function cooldownError(retryAfterSec: number): HttpError {

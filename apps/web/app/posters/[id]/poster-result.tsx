@@ -145,9 +145,7 @@ function PosterView({ poster, justCreated }: { poster: PosterDto; justCreated: b
           {regenerationsLeft === 0
             ? 'আজ আর আবার তৈরি করা যাবে না'
             : `লেখা পরিবর্তন করে আবার তৈরি করুন${
-                regenerationsLeft === undefined
-                  ? ''
-                  : ` (আর ${toBanglaDigits(regenerationsLeft)} বার)`
+                regenerationsLeft == null ? '' : ` (আর ${toBanglaDigits(regenerationsLeft)} বার)`
               }`}
         </Button>
       )}

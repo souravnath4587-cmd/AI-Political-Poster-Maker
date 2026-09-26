@@ -11,6 +11,7 @@
     "seed:templates": "tsx scripts/seed-templates.ts",
     "seed:users": "tsx scripts/seed-users.ts",
     "db:sync-otp-indexes": "tsx scripts/sync-otp-indexes.ts",
+    "db:migrate-plan-pro": "tsx scripts/migrate-plan-pro.ts",
     "test": "vitest run",
     "build": "tsup",
     "start": "node dist/server.js",

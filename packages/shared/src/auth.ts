@@ -78,14 +78,14 @@ export interface OtpRequestResponse {
 }
 
 export const userRoleSchema = z.enum(['user', 'admin']);
-export const userPlanSchema = z.enum(['free', 'premium']);
+export const userPlanSchema = z.enum(['free', 'pro', 'premium']);
 export type UserPlan = z.infer<typeof userPlanSchema>;
 
 export interface AuthUser {
   id: string;
   phone: string;
   role: z.infer<typeof userRoleSchema>;
-  /** Effective plan: `premium` only while `planExpiresAt` hasn't passed. */
+  /** Effective plan: `pro` or `premium` only while `planExpiresAt` hasn't passed. */
   plan: UserPlan;
   planExpiresAt: string | null;
 }
@@ -99,7 +99,7 @@ export interface AuthOptionsResponse {
   devMode: boolean;
   resendAfterSec: number;
   otpTtlSec: number;
-  reviewer: { freePhone: string; premiumPhone: string; code: string } | null;
+  reviewer: { freePhone: string; proPhone: string; code: string } | null;
 }
 
 // ---------------------------------------------------------------------------
