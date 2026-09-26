@@ -102,6 +102,14 @@ export function errorMessage(error: unknown): string {
       return 'এই মুহূর্তে এসএমএস পাঠানো যাচ্ছে না। একটু পরে চেষ্টা করুন।';
     case 'SMS_FAILED':
       return 'এসএমএস পাঠানো যায়নি। নম্বরটি দেখে নিয়ে একটু পরে আবার চেষ্টা করুন।';
+    case 'PAYMENTS_UNAVAILABLE':
+      return 'এই মুহূর্তে অনলাইন পেমেন্ট চালু নেই। একটু পরে চেষ্টা করুন।';
+    case 'PAYMENT_FAILED':
+      return 'বিকাশ পেমেন্ট শুরু করা যায়নি। একটু পরে আবার চেষ্টা করুন।';
+    case 'PLAN_DOWNGRADE_BLOCKED':
+      return 'আপনার প্রিমিয়াম প্ল্যান চালু আছে। মেয়াদ শেষ হলে প্রো নিতে পারবেন।';
+    case 'PLAN_ALREADY_ACTIVE':
+      return 'এই প্ল্যানটি আপনার অ্যাকাউন্টে মেয়াদ ছাড়াই চালু আছে।';
     case 'SERVICE_UNAVAILABLE':
       return 'সার্ভারে সাময়িক সমস্যা হচ্ছে। কিছুক্ষণ পর আবার চেষ্টা করুন।';
     case 'UNAUTHENTICATED':

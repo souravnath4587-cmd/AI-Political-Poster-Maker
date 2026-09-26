@@ -1,5 +1,6 @@
 export * from './auth';
 export * from './headline';
+export * from './payment';
 export * from './health';
 export * from './poster';
 export * from './quota';

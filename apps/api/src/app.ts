@@ -11,6 +11,7 @@ import { authRouter } from './routes/auth';
 import { devRouter } from './routes/dev';
 import { headlinesRouter } from './routes/headlines';
 import { healthRouter } from './routes/health';
+import { paymentsRouter } from './routes/payments';
 import { postersRouter } from './routes/posters';
 import { quotaRouter } from './routes/quota';
 import { templatesRouter } from './routes/templates';
@@ -42,6 +43,7 @@ export function createApp() {
   app.use('/api/upload', limits.upload);
   app.use('/api/posters', limits.posterWrites);
   app.use('/api/headlines', limits.headlines);
+  app.use('/api/payments', limits.payments);
 
   app.use('/api/health', healthRouter);
   app.use('/api/auth', authRouter);
@@ -50,6 +52,7 @@ export function createApp() {
   app.use('/api/posters', postersRouter);
   app.use('/api/quota', quotaRouter);
   app.use('/api/headlines', headlinesRouter);
+  app.use('/api/payments', paymentsRouter);
   if (!isProduction) app.use('/api/dev', devRouter);
 
   app.use(notFound);

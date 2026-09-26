@@ -49,6 +49,14 @@ services:
         sync: false
       - key: BULKSMSBD_SENDER_ID
         sync: false
+      - key: BKASH_APP_KEY
+        sync: false
+      - key: BKASH_APP_SECRET
+        sync: false
+      - key: BKASH_USERNAME
+        sync: false
+      - key: BKASH_PASSWORD
+        sync: false
       - key: REVIEWER_FREE_PHONE
         value: "01999000001"
       - key: REVIEWER_PRO_PHONE

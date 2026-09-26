@@ -92,17 +92,29 @@ const envSchema = z
     BULKSMSBD_API_KEY: z.string().min(1).optional(),
     BULKSMSBD_SENDER_ID: z.string().min(1).optional(),
     BULKSMSBD_API_URL: z.url().default('https://bulksmsbd.net/api/smsapi'),
+
+    // --- Payments (bKash Tokenized Checkout) ---
+    // Without these, buying Pro/Premium answers 503 PAYMENTS_UNAVAILABLE. The default URL is
+    // bKash's sandbox; use the production URL from the merchant panel for real payments.
+    BKASH_BASE_URL: z.url().default('https://tokenized.sandbox.bka.sh/v1.2.0-beta'),
+    BKASH_APP_KEY: z.string().min(1).optional(),
+    BKASH_APP_SECRET: z.string().min(1).optional(),
+    BKASH_USERNAME: z.string().min(1).optional(),
+    BKASH_PASSWORD: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
-    const reviewerKeys = ['REVIEWER_FREE_PHONE', 'REVIEWER_PRO_PHONE', 'REVIEWER_CODE'] as const;
-    const reviewerSet = reviewerKeys.filter((key) => env[key]);
-    if (reviewerSet.length > 0 && reviewerSet.length < reviewerKeys.length) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['REVIEWER_CODE'],
-        message: `Set all or none of ${reviewerKeys.join(', ')}`,
-      });
-    }
+    const allOrNone = (keys: readonly (keyof typeof env)[]) => {
+      const set = keys.filter((key) => env[key]);
+      if (set.length > 0 && set.length < keys.length) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [keys.at(-1)!],
+          message: `Set all or none of ${keys.join(', ')}`,
+        });
+      }
+    };
+    allOrNone(['REVIEWER_FREE_PHONE', 'REVIEWER_PRO_PHONE', 'REVIEWER_CODE']);
+    allOrNone(['BKASH_APP_KEY', 'BKASH_APP_SECRET', 'BKASH_USERNAME', 'BKASH_PASSWORD']);
 
     // Only matters when SMS is really sent (e.g. the sender ID can still be awaiting approval).
     if (!env.OTP_DEV_MODE && Boolean(env.BULKSMSBD_API_KEY) !== Boolean(env.BULKSMSBD_SENDER_ID)) {
@@ -155,6 +167,17 @@ export const bulkSmsBd =
         apiKey: env.BULKSMSBD_API_KEY,
         senderId: env.BULKSMSBD_SENDER_ID,
         url: env.BULKSMSBD_API_URL,
+      }
+    : null;
+
+export const bkash =
+  env.BKASH_APP_KEY && env.BKASH_APP_SECRET && env.BKASH_USERNAME && env.BKASH_PASSWORD
+    ? {
+        baseUrl: env.BKASH_BASE_URL.replace(/\/+$/, ''),
+        appKey: env.BKASH_APP_KEY,
+        appSecret: env.BKASH_APP_SECRET,
+        username: env.BKASH_USERNAME,
+        password: env.BKASH_PASSWORD,
       }
     : null;
 

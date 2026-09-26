@@ -86,7 +86,7 @@ export default function Dashboard() {
 
         {quota.data && <QuotaCard quota={quota.data} />}
 
-        {/* Paid plans (payments are deferred: admins assign them for now) */}
+        {/* Paid plans, bought with bKash on /plans */}
         {!paid && (
           <Link
             href="/plans"
@@ -100,8 +100,8 @@ export default function Dashboard() {
                   {toBanglaDigits(PLAN_PRICE_BDT.premium)}, সব আনলিমিটেড
                 </p>
               </div>
-              <span className="shrink-0 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
-                শীঘ্রই আসছে
+              <span className="shrink-0 rounded-full bg-[#e2136e] px-3 py-1.5 text-xs font-bold text-white">
+                বিকাশে কিনুন
               </span>
             </div>
           </Link>

@@ -84,5 +84,12 @@ export function createRateLimits() {
       skip: writesOnly,
     }),
     headlines: limiter('headlines', { windowMs: MINUTE, limit: 10, key: bySession }),
+    // Starting a bKash payment; the callback and history are GETs and not limited here.
+    payments: limiter('payments', {
+      windowMs: 10 * MINUTE,
+      limit: 10,
+      key: bySession,
+      skip: writesOnly,
+    }),
   };
 }
