@@ -5,9 +5,13 @@ Local political workers in Bangladesh fill in a short form, upload a few photos,
 in the familiar Bangladeshi poster style (leader photos, flag colours, big Bangla headline,
 credit bar with the publisher's name).
 
-| Victory day (4:5) | Mourning, free tier with watermark (4:5) | Victory day (A3, preview) |
+| Victory day (4:5) | Independence day (4:5) | Mourning, free tier with watermark (4:5) |
 |---|---|---|
-| ![Victory day poster](docs/samples/victory-day-4x5.png) | ![Mourning poster](docs/samples/mourning-4x5-free-watermark.png) | ![A3 poster](docs/samples/victory-day-A3-preview.png) |
+| ![Victory day poster](docs/samples/victory-day-4x5.png) | ![Independence day poster](docs/samples/independence-day-4x5.png) | ![Mourning poster](docs/samples/mourning-4x5-free-watermark.png) |
+| **Ekushe February (4:5)** | **Eid greeting (4:5)** | **Pohela Boishakh (4:5)** |
+| ![Ekushe February poster](docs/samples/ekushe-february-4x5.png) | ![Eid poster](docs/samples/eid-mubarak-4x5.png) | ![Pohela Boishakh poster](docs/samples/pohela-boishakh-4x5.png) |
+
+Every template also renders at A3 for print ([victory day A3 preview](docs/samples/victory-day-A3-preview.png)).
 
 **Live demo:** https://poster-maker-web.vercel.app · Demo video: _link added after recording_
 
@@ -26,7 +30,7 @@ The first poster after a quiet spell takes a few seconds longer while the API st
 ## What it does
 
 1. **Log in** with a phone number and a one-time code (Bangla or English digits).
-2. **Pick a template** — বিজয় দিবস or শোক ও শ্রদ্ধাঞ্জলি.
+2. **Pick a template** — বিজয় দিবস, স্বাধীনতা দিবস, শোক ও শ্রদ্ধাঞ্জলি, শহীদ দিবস (২১শে ফেব্রুয়ারি), ঈদ মোবারক or শুভ নববর্ষ.
 3. **Fill the form**: name, পদবি, party/organization, area, headline; upload up to two leader
    photos, your own photo and an optional party symbol. Photos are cropped around the detected
    face; low-resolution photos get a warning.
@@ -141,7 +145,7 @@ Requirements: Node.js 24, pnpm 11, and (optional) accounts for MongoDB Atlas, Cl
 pnpm install
 cp apps/api/.env.example apps/api/.env      # fill in what you have (see below)
 cp apps/web/.env.example apps/web/.env.local
-pnpm --filter @app/api seed:templates        # the two templates
+pnpm --filter @app/api seed:templates        # the six templates
 pnpm --filter @app/api seed:users            # the two reviewer accounts
 pnpm dev                                      # db + api (:4000) + web (:3000)
 ```

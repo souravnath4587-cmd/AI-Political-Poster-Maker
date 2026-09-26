@@ -268,3 +268,4 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 - Blocklist managed by an admin instead of a code file
 - AI backgrounds (2.3), if not done before the deadline
 - ~~Third template~~ Done: স্বাধীনতা দিবস (`independence-day`, occasion `national_day`, 4:5 + A3, 1 or 2 leaders); shared layout pieces moved to `templates/parts.ts` (বিজয় দিবস output unchanged). Seed it only after the API that knows `national_day` is deployed
+- More templates (2026-09-26): শহীদ দিবস — ২১শে ফেব্রুয়ারি (`ekushe-february`, Shaheed Minar on a light paper background), ঈদ মোবারক (`eid-mubarak`, `festival`, crescent/lanterns/mosque skyline at night) and শুভ নববর্ষ (`pohela-boishakh`, `greeting`, scalloped red banner and alpona). Six templates in all, each at 4:5 and A3 with 1 or 2 leaders; 4:5 samples in `docs/samples`. Seeded to the local database only

@@ -1,12 +1,22 @@
 import { PHOTO_PLACEHOLDER, type PosterContent } from '../render/posterHtml';
+import { eid } from './eid';
+import { ekushe } from './ekushe';
 import { independenceDay } from './independenceDay';
 import { mourning } from './mourning';
+import { pohelaBoishakh } from './pohelaBoishakh';
 import type { TemplateSeed } from './types';
 import { victoryDay } from './victoryDay';
 
 export type { TemplateSeed } from './types';
 
-export const TEMPLATE_SEEDS: readonly TemplateSeed[] = [victoryDay, mourning, independenceDay];
+export const TEMPLATE_SEEDS: readonly TemplateSeed[] = [
+  victoryDay,
+  mourning,
+  independenceDay,
+  ekushe,
+  eid,
+  pohelaBoishakh,
+];
 
 /** Realistic content for thumbnails, samples and tests. Photos are grey placeholders. */
 export const SAMPLE_CONTENT: PosterContent = {
