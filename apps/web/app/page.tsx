@@ -3,8 +3,13 @@
 import { ChevronRight, History, LayoutTemplate, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { formatBdPhoneLocal, toBanglaDigits } from '@app/shared';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  formatBdPhoneLocal,
+  occasionTypeSchema,
+  toBanglaDigits,
+  type OccasionType,
+} from '@app/shared';
 import { AppHeader } from '@/components/app-header';
 import { QuotaCard } from '@/components/quota-card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +32,16 @@ export default function Dashboard() {
   const templates = useTemplates();
   const posters = useMyPosters();
   const quota = useQuota();
+  const [occasion, setOccasion] = useState<OccasionType | 'all'>('all');
+
+  // Only categories that have templates, in the usual occasion order.
+  const occasions = useMemo(() => {
+    const used = new Set(templates.data?.map((t) => t.occasionType));
+    return occasionTypeSchema.options.filter((o) => used.has(o));
+  }, [templates.data]);
+  const shownTemplates = templates.data?.filter(
+    (t) => occasion === 'all' || t.occasionType === occasion,
+  );
 
   // The cookie existed (proxy.ts let us in) but the session is gone or expired.
   useEffect(() => {
@@ -97,6 +112,33 @@ export default function Dashboard() {
             টেমপ্লেট বেছে নিন
           </h2>
 
+          {occasions.length > 1 && (
+            <div
+              role="group"
+              aria-label="ধরন অনুযায়ী টেমপ্লেট দেখুন"
+              className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6"
+            >
+              {(['all', ...occasions] as const).map((value) => {
+                const active = occasion === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setOccasion(value)}
+                    className={
+                      active
+                        ? 'min-h-10 flex-none rounded-full border border-emerald-600 bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm'
+                        : 'min-h-10 flex-none rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:border-emerald-500 hover:text-emerald-700'
+                    }
+                  >
+                    {value === 'all' ? 'সব' : OCCASION_LABELS_BN[value]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {templates.isPending && (
             <div className="grid grid-cols-2 gap-4">
               {[0, 1].map((i) => (
@@ -107,9 +149,9 @@ export default function Dashboard() {
           {templates.isError && (
             <p className="text-sm text-red-600">{errorMessage(templates.error)}</p>
           )}
-          {templates.data && (
+          {shownTemplates && (
             <div className="grid grid-cols-2 gap-4">
-              {templates.data.map((template) => (
+              {shownTemplates.map((template) => (
                 <Link
                   key={template.id}
                   href={`/posters/new?template=${template.id}`}
