@@ -33,8 +33,9 @@ export const PHOTO_FIELD_LABELS: Record<PhotoField, string> = {
 
 export const OCCASION_LABELS_BN: Record<OccasionType, string> = {
   victory_day: 'বিজয় দিবস',
+  national_day: 'জাতীয় দিবস',
   mourning: 'শোক ও স্মরণ',
   election: 'নির্বাচনী প্রচার',
   greeting: 'শুভেচ্ছা',
-  festival: 'ঈদ/উৎসব',
+  festival: 'উৎসব',
 };

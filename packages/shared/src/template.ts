@@ -7,6 +7,7 @@ import { OUTPUT_SIZES, outputSizeSchema, type OutputSize } from './render';
 
 export const occasionTypeSchema = z.enum([
   'victory_day',
+  'national_day',
   'mourning',
   'election',
   'greeting',
@@ -16,10 +17,11 @@ export type OccasionType = z.infer<typeof occasionTypeSchema>;
 
 export const OCCASION_LABELS: Record<OccasionType, string> = {
   victory_day: 'বিজয় দিবস',
+  national_day: 'জাতীয় দিবস',
   mourning: 'শোক/স্মরণ',
   election: 'নির্বাচনী প্রচার',
   greeting: 'শুভেচ্ছা',
-  festival: 'ঈদ/উৎসব',
+  festival: 'উৎসব',
 };
 
 /** Text a template can show. Values come from the poster form or the template's `defaults`. */

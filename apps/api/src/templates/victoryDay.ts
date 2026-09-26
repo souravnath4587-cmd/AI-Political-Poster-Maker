@@ -1,11 +1,14 @@
-import type { LayoutConfigInput, TemplateElementInput } from '@app/shared';
+import type { LayoutConfigInput } from '@app/shared';
 import { footerElements } from './footer';
+import { leaderText, WITH_LEADER2, WITHOUT_LEADER2, type LeaderTextStyle } from './parts';
 import type { TemplateSeed } from './types';
 
 const PADDY_STRIPES =
   'repeating-linear-gradient(100deg, rgba(247,208,70,0.24) 0 0.5vw, rgba(247,208,70,0) 0.5vw 1.7vw)';
 const SUN_RAYS =
   'repeating-conic-gradient(from 0deg at 50% 22%, rgba(255,255,255,0.04) 0deg 6deg, rgba(255,255,255,0) 6deg 12deg)';
+
+const LEADER_TEXT: LeaderTextStyle = { nameColor: 'white', titleColor: 'goldLight' };
 
 interface Geometry {
   bandHeight: number;
@@ -18,44 +21,9 @@ interface Geometry {
   footer: { top: number; height: number };
 }
 
-function leaderText(
-  n: 1 | 2,
-  box: { x: number; w: number },
-  nameY: number,
-  showIf: TemplateElementInput['showIf'],
-  suffix: string,
-): TemplateElementInput[] {
-  return [
-    {
-      kind: 'text',
-      id: `leader${n}Name${suffix}`,
-      field: `leader${n}Name`,
-      box: { x: box.x, y: nameY, w: box.w, h: 5.2 },
-      font: 'body',
-      weight: 700,
-      size: { min: 2.4, max: 3.6 },
-      color: 'white',
-      effect: 'soft-shadow',
-      showIf,
-    },
-    {
-      kind: 'text',
-      id: `leader${n}Title${suffix}`,
-      field: `leader${n}Title`,
-      box: { x: box.x, y: nameY + 5.2, w: box.w, h: 3.8 },
-      font: 'body',
-      weight: 500,
-      size: { min: 1.8, max: 2.6 },
-      color: 'goldLight',
-      effect: 'soft-shadow',
-      showIf,
-    },
-  ];
-}
-
 function layout(g: Geometry): LayoutConfigInput['sizes']['a3'] {
-  const two = { field: 'leader2Photo', present: true } as const;
-  const one = { field: 'leader2Photo', present: false } as const;
+  const two = WITH_LEADER2;
+  const one = WITHOUT_LEADER2;
   const sunX = 50 - g.sun.size / 2;
   const sunY = g.sun.centerY - g.sun.size / 2;
   const twoX = [25 - g.twoLeaders.size / 2, 75 - g.twoLeaders.size / 2];
@@ -125,8 +93,8 @@ function layout(g: Geometry): LayoutConfigInput['sizes']['a3'] {
         shadow: true,
         optional: true,
       },
-      ...leaderText(1, { x: 7, w: 36 }, g.twoLeaders.nameY, two, ''),
-      ...leaderText(2, { x: 57, w: 36 }, g.twoLeaders.nameY, two, ''),
+      ...leaderText(1, { x: 7, w: 36 }, g.twoLeaders.nameY, two, '', LEADER_TEXT),
+      ...leaderText(2, { x: 57, w: 36 }, g.twoLeaders.nameY, two, '', LEADER_TEXT),
 
       // …or one leader, larger and centered on the sun.
       {
@@ -138,7 +106,7 @@ function layout(g: Geometry): LayoutConfigInput['sizes']['a3'] {
         shadow: true,
         showIf: one,
       },
-      ...leaderText(1, { x: 20, w: 60 }, g.oneLeader.nameY, one, 'Solo'),
+      ...leaderText(1, { x: 20, w: 60 }, g.oneLeader.nameY, one, 'Solo', LEADER_TEXT),
 
       {
         kind: 'text',
