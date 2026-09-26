@@ -9,7 +9,7 @@ credit bar with the publisher's name).
 |---|---|---|
 | ![Victory day poster](docs/samples/victory-day-4x5.png) | ![Mourning poster](docs/samples/mourning-4x5-free-watermark.png) | ![A3 poster](docs/samples/victory-day-A3-preview.png) |
 
-**Live demo:** _URL added after deployment_ · Demo video: _link added after recording_
+**Live demo:** https://poster-maker-web.vercel.app · Demo video: _link added after recording_
 
 ## Reviewer access
 
@@ -21,7 +21,7 @@ No Bangladeshi SIM needed. On the login page, use the **রিভিউয়া
 | Free (3 posters + 2 regenerations a day, watermark) | `01999000001` | `123456` |
 | Premium (10 + 5 a day, no watermark) | `01999000002` | `123456` |
 
-The free Render instance sleeps when idle: the first request after a while can take up to a minute.
+The first poster after a quiet spell takes a few seconds longer while the API starts Chromium.
 
 ## What it does
 
@@ -41,7 +41,7 @@ The whole interface is Bangla and built for phones (checked at 360 px).
 ```mermaid
 flowchart LR
   B[Phone browser] -->|/api/* rewrite, first-party cookie| W[Next.js 16 on Vercel]
-  W --> A[Express 5 API on Render<br/>Docker]
+  W --> A[Express 5 API on Vercel<br/>function + serverless Chromium]
   A --> M[(MongoDB Atlas<br/>users, sessions, posters, quotas)]
   A --> C[(Cloudinary<br/>private photos + posters)]
   A --> P[Puppeteer / Chromium<br/>HTML template → PNG]
@@ -97,6 +97,42 @@ Re-downloading an existing poster is always free. Premium is assigned by an admi
 - **Terms of use** accepted at the first login, including an attestation that the user may use
   the photos and names on the poster. Every AI call and render is logged.
 
+## Login (phone + one-time code)
+
+Accounts are phone numbers; there are no passwords. The API keeps its own sessions (an httpOnly
+`sid` cookie whose SHA-256 is stored in `sessions`), so the one-time code only proves the phone.
+
+| Endpoint | Body | Answer |
+|---|---|---|
+| `POST /api/auth/otp/request` | `{ phone }` (Bangladeshi mobile, Bangla or ASCII digits) | `{ resendAfterSec, expiresInSec }` (+ `devCode` in dev mode only) |
+| `POST /api/auth/otp/verify` | `{ phone, code, acceptTerms? }` | `{ user }` and the session cookie |
+| `GET /api/auth/options` | – | `{ devMode, resendAfterSec, otpTtlSec, reviewer }` for the login page |
+| `GET /api/auth/me` · `POST /api/auth/logout` · `POST /api/auth/logout-all` | – | current user · end this / every session |
+
+How codes are handled ([`services/otp.ts`](apps/api/src/services/otp.ts)):
+
+- **6 digits from `crypto.randomInt`**, stored only as `sha256(OTP_PEPPER:phone:code)` in
+  `otpcodes`, with `status` (`pending` → `verified`, or `superseded` by a newer code, or `failed`
+  when the SMS didn't go out), `attempts`, `expiresAt`, the requesting IP and timestamps. Rows are
+  deleted a day later (TTL on `purgeAt`).
+- **Valid for `OTP_TTL_SEC`** (180 s), **`OTP_MAX_ATTEMPTS` wrong guesses** (5, counted atomically,
+  so parallel guesses can't get more), **used once**: a correct code is marked `verified` and can't
+  log in again. A new code makes the previous one stop working.
+- **Limits, stored in MongoDB** so they hold across function instances: one code per phone every
+  `OTP_RESEND_COOLDOWN_SEC` (60 s, also when requests arrive at the same moment),
+  `OTP_MAX_PER_PHONE_PER_HOUR` (5) and `OTP_MAX_PER_IP_PER_HOUR` (20). In-memory limiters in front
+  add burst protection per instance.
+- **No account enumeration:** `otp/request` answers the same for every number. Only after a
+  correct code does a new number get `TERMS_REQUIRED`; the code stays usable and the login page
+  shows the terms checkbox.
+- **SMS through [BulkSMSBD](https://bulksmsbd.net)** ([`services/sms.ts`](apps/api/src/services/sms.ts)),
+  with `BULKSMSBD_API_KEY` and `BULKSMSBD_SENDER_ID`. The code never appears in API responses or
+  logs outside dev mode; SMS errors log only the provider's response code and a masked number.
+- **Errors** are codes the web app shows in Bangla: `INVALID_PHONE`, `CODE_INVALID` (with
+  `attemptsLeft`), `CODE_EXPIRED`, `TOO_MANY_ATTEMPTS`, `RATE_LIMITED` (with `retryAfterSec` and
+  `reason: cooldown | hourly`), `TERMS_REQUIRED`, `SMS_FAILED` (provider error or timeout),
+  `SMS_UNAVAILABLE` (no provider configured), `SERVICE_UNAVAILABLE` (database unreachable).
+
 ## Run it locally
 
 Requirements: Node.js 24, pnpm 11, and (optional) accounts for MongoDB Atlas, Cloudinary and Gemini.
@@ -117,7 +153,7 @@ Open http://localhost:3000.
 - **Uploads** need Cloudinary keys. **Face crop and headline suggestions** need `GEMINI_API_KEY`;
   without it, photos use a centred crop and the suggestion button explains it's unavailable.
 - **`OTP_DEV_MODE=true`** shows login codes in the console and on the login page instead of
-  sending SMS (there is no SMS provider yet).
+  sending SMS. To send real SMS, set it to `false` and fill in the `BULKSMSBD_*` keys.
 - **`querySrv ECONNREFUSED`** when connecting to Atlas: some local DNS proxies refuse SRV
   lookups. Set `DNS_SERVERS=8.8.8.8,1.1.1.1` in `apps/api/.env`.
 
@@ -125,19 +161,30 @@ Useful scripts:
 
 | Command | What it does |
 |---|---|
-| `pnpm test` | All tests (145), including real Chromium renders |
+| `pnpm test` | All tests (161), including real Chromium renders |
 | `pnpm typecheck` / `pnpm lint` | Types and lint for all packages |
 | `pnpm --filter @app/api render:sample` | Renders every template/size/variant to `apps/api/.data/renders` |
 | `pnpm --filter @app/api templates:thumbnails` | Rebuilds template thumbnails after a template change |
 
 ## Deploy
 
-- **API → Render** with the Blueprint in [`render.yaml`](render.yaml) (Docker image with Chrome).
-  Enter the secrets when prompted: `MONGODB_URI`, Cloudinary keys, `GEMINI_API_KEY`,
-  `APP_ORIGIN` (the Vercel URL). `OTP_DEV_MODE` is on for the demo (see known limitations). Then run
-  the two seed scripts against the production database.
-- **Web → Vercel** with Root Directory `apps/web` and `API_ORIGIN` set to the Render URL
+Both apps are Vercel projects built from this monorepo (`.vercelignore` keeps local `.env` files out
+of CLI uploads):
+
+- **API → `poster-maker-api`**, Root Directory `apps/api`. [`apps/api/vercel.json`](apps/api/vercel.json)
+  runs `tsup` and sends every route to one function (`api/index.js` → `src/vercel.ts`, the same
+  Express app without `listen()`); Chromium comes from `@sparticuz/chromium`. Env: `NODE_ENV=production`,
+  `APP_ORIGIN` (the web URL), `MONGODB_URI`, Cloudinary keys, `GEMINI_API_KEY`, `OTP_PEPPER`
+  (16+ random characters), reviewer numbers + code, `BULKSMSBD_API_KEY` + `BULKSMSBD_SENDER_ID`.
+  `OTP_DEV_MODE` must be off: the API refuses to start in production with it. Atlas must allow
+  `0.0.0.0/0`, and IP whitelisting must stay off in the BulkSMSBD panel (Vercel has no fixed IPs).
+  Then run the two seed scripts against the production database, and once
+  `pnpm --filter @app/api db:sync-otp-indexes` (drops the old TTL index on `otpcodes.expiresAt`).
+- **Web → `poster-maker-web`**, Root Directory `apps/web`, with `API_ORIGIN` set to the API URL
   **before** the first build (the `/api` rewrite is built in).
+
+[`render.yaml`](render.yaml) and the `Dockerfile` still describe the alternative: the API on Render
+with a full Chrome.
 
 ## What was cut, and why
 
@@ -146,23 +193,22 @@ Scoped for one developer and a two-day deadline (see [`project-scope.md`](projec
 - **Campaign templates** — Election Commission rules on campaign posters need checking first.
 - **Payments** (bKash/Nagad) — premium exists but is assigned by an admin.
 - **Admin panel, moderation queue, PDF export, bulk/CSV generation** — managed by scripts for now.
-- **Real SMS** — needs provider onboarding (sender ID/KYC in Bangladesh); dev codes and reviewer
-  numbers cover the demo.
 - **AI-generated backgrounds** — templates use hand-made CSS gradients.
 
 ## Known limitations
 
 - **The blocklist is a starting list** and not a moderation system; what else belongs on it is
   the owner's decision.
-- **Rate limits live in memory** — correct for one API instance; a shared store (e.g. Redis) is
-  needed to scale out.
+- **Burst rate limits live in memory**, per function instance: Vercel can run several at once, so
+  upload, poster and suggestion limits are looser than configured under load. The login-code
+  limits are stored in MongoDB and hold everywhere. A shared store (e.g. Redis) would fix the rest.
 - **Face crop falls back to a centred crop** when Gemini is busy; for a person standing far to
   one side this can frame the background. A manual crop control would fix it.
-- **With `OTP_DEV_MODE=true` anyone can log in as any number**, since the code is returned to the
-  browser. Fine for a demo, not for real users.
+- **Without BulkSMSBD keys only the reviewer numbers can log in** in production (other numbers
+  get `SMS_UNAVAILABLE`); dev mode, which returns codes to the browser, is local-only.
 - **Print output is RGB PNG without bleed**; print shops may ask for CMYK or a 3 mm bleed.
 
 ## Next steps
 
-Real SMS provider · manual crop control · campaign templates after checking EC rules ·
+Manual crop control · campaign templates after checking EC rules ·
 payments · admin panel with moderation queue · shared rate-limit store · cleanup of unused uploads.

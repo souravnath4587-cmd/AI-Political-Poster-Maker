@@ -115,24 +115,30 @@ A small **custom session service** (~100 lines) on a Mongoose `Session` model, r
 
 // OtpCode — one-time login codes
 {
-  phone: string,          // E.164, e.g. +8801XXXXXXXXX — index
-  codeHash: string,       // SHA-256 of the 6-digit code (+ server pepper)
-  attempts: number,       // max 5, then the code is invalidated
-  expiresAt: Date,        // now + 5 min, TTL index
+  phone: string,          // E.164, e.g. +8801XXXXXXXXX — index { phone, createdAt: -1 }
+  codeHash: string,       // SHA-256 of pepper + phone + 6-digit code
+  status: 'pending' | 'verified' | 'superseded' | 'failed',
+  attempts: number,       // max OTP_MAX_ATTEMPTS (5), then the code is dead
+  verifiedAt: Date | null,
+  expiresAt: Date,        // now + OTP_TTL_SEC (180 s): the code stops working
+  ip: string | null,      // index { ip, createdAt: -1 }, for the per-IP hourly limit
+  purgeAt: Date,          // now + 24 h, TTL index (rows feed the hourly limits)
   createdAt: Date,
+  updatedAt: Date,
 }
 ```
 
 ### 4.4 Flow
 
 1. **`POST /api/auth/otp/request`** `{ phone }`
-   - Normalize to E.164, rate-limit per phone and per IP.
-   - Generate a 6-digit code with `crypto.randomInt`, store its hash in `OtpCode`, send it through the `SmsProvider`.
-   - `SmsProvider` implementations: **`ConsoleSmsProvider`** (dev mode, env flag `OTP_DEV_MODE=true`, required for MVP) and a real provider as a stretch goal (Twilio Verify or a BD gateway).
-   - **Reviewer test number:** `REVIEWER_PHONE` + fixed `REVIEWER_CODE` from env; no SMS sent.
+   - Normalize to E.164. Limits stored in MongoDB: 60 s cooldown per phone (race-safe), 5 codes per phone and 20 per IP per hour; plus in-memory burst limits.
+   - Generate a 6-digit code with `crypto.randomInt`, store its hash in `OtpCode`, send it through the `SmsProvider`, then mark older pending codes `superseded`. A failed send marks the row `failed` (doesn't count towards the limits).
+   - `SmsProvider` implementations: **`ConsoleSmsProvider`** (`OTP_DEV_MODE=true`, refused in production) and **`BulkSmsBdProvider`** (BulkSMSBD HTTP API).
+   - Same answer for every number (no `isNewUser`), so it can't be used to find accounts.
+   - **Reviewer test numbers:** `REVIEWER_FREE_PHONE` / `REVIEWER_PREMIUM_PHONE` + fixed `REVIEWER_CODE` from env; no SMS sent.
 2. **`POST /api/auth/otp/verify`** `{ phone, code }`
-   - Compare hashes with `crypto.timingSafeEqual`; increment `attempts` on failure; delete the `OtpCode` on success.
-   - Upsert the `User` (first login = signup; requires the terms checkbox → `acceptedTermsAt`).
+   - Compare hashes with `crypto.timingSafeEqual` against the latest pending code; every attempt is counted atomically; mark the code `verified` on success (single use, also under parallel requests).
+   - Upsert the `User` (first login = signup; requires the terms checkbox → `acceptedTermsAt`). A new number with a correct code but no `acceptTerms` gets `TERMS_REQUIRED`; the code stays usable.
    - Create a session: `token = crypto.randomBytes(32).toString('base64url')`, store `sha256(token)`, `expiresAt = now + 30 days`.
    - A **new session is always created on login** (prevents session fixation).
    - Respond with `Set-Cookie: sid=<token>`.
@@ -174,7 +180,7 @@ Cookie-based auth needs CSRF protection:
 | Env config | Zod-validated `process.env` at startup | Crash on boot if a key is missing, not mid-request. |
 | Security headers | helmet | |
 | CORS | `cors` with an explicit origin allowlist | Only needed for the fallback in §4.5. |
-| Rate limiting | express-rate-limit (in-memory store) | Single Render instance, so in-memory is enough. Limits on OTP request, upload, generate and headline suggestions. |
+| Rate limiting | express-rate-limit (in-memory store) + stored OTP limits | In-memory burst limits on OTP request, upload, generate and headline suggestions. Login-code limits (cooldown, per phone / IP per hour, attempts) are counted in MongoDB so they hold across Vercel instances. |
 | Uploads | multer (memory, 10 MB max, image MIME only) → sharp → Cloudinary | sharp enforces minimum resolution (R6), auto-rotates, strips EXIF/GPS. |
 | Quotas | `UsageCounter` + single atomic conditional `$inc` (project-scope §12) | Reserve-then-refund on render failure. Dhaka date via `Intl.DateTimeFormat` with `timeZone: 'Asia/Dhaka'`. |
 | Blocklist | Static keyword list in the repo, normalized Bangla/English match | |
@@ -210,7 +216,7 @@ DELETE /api/posters/:id
 |---|---|
 | `users` | `phone` unique |
 | `sessions` | `tokenHash` unique, `userId`, TTL on `expiresAt` |
-| `otpcodes` | `phone`, TTL on `expiresAt` |
+| `otpcodes` | `{ phone, createdAt: -1 }`, `{ ip, createdAt: -1 }`, TTL on `purgeAt` |
 | `templates` | `occasionType`, `isActive` |
 | `posters` | `{ userId, createdAt: -1 }` (history page) |
 | `usagecounters` | `{ userId, date }` unique |
@@ -280,9 +286,12 @@ NODE_ENV, PORT
 MONGODB_URI
 APP_ORIGIN                     # Vercel URL, for Origin check / CORS
 SESSION_TTL_DAYS=30
-OTP_DEV_MODE=true
+OTP_DEV_MODE=false             # true only locally; refused in production
 OTP_PEPPER
-REVIEWER_PHONE, REVIEWER_CODE
+OTP_TTL_SEC=180, OTP_RESEND_COOLDOWN_SEC=60, OTP_MAX_ATTEMPTS=5
+OTP_MAX_PER_PHONE_PER_HOUR=5, OTP_MAX_PER_IP_PER_HOUR=20
+BULKSMSBD_API_KEY, BULKSMSBD_SENDER_ID, BULKSMSBD_API_URL
+REVIEWER_FREE_PHONE, REVIEWER_PREMIUM_PHONE, REVIEWER_CODE
 GEMINI_API_KEY
 CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 ```
@@ -295,7 +304,7 @@ CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 |---|---|---|
 | Quota logic | Vitest + mongodb-memory-server | Limits, Dhaka day boundary, **5 parallel requests at the limit**, refund on failure |
 | Sessions | Vitest + supertest | Login sets cookie, expired/deleted session → 401, logout-all, other user's poster → 404 |
-| OTP | Vitest | Wrong code attempts, expiry, reviewer number |
+| OTP | Vitest + supertest | Wrong code attempts (also parallel), expiry, single use, resend replaces the old code, cooldown race, hourly limits, SMS failure, no enumeration, reviewer number; BulkSMSBD provider with mocked `fetch` |
 | `layoutConfig` | Vitest | Zod schema accepts seeded templates, rejects malformed ones |
 | Text fitting / rendering | Vitest + Puppeteer | 60-char name/designation fit; conjunct sample renders (snapshot of dimensions) |
 

@@ -10,6 +10,7 @@
     "templates:thumbnails": "tsx scripts/build-thumbnails.ts",
     "seed:templates": "tsx scripts/seed-templates.ts",
     "seed:users": "tsx scripts/seed-users.ts",
+    "db:sync-otp-indexes": "tsx scripts/sync-otp-indexes.ts",
     "test": "vitest run",
     "build": "tsup",
     "start": "node dist/server.js",

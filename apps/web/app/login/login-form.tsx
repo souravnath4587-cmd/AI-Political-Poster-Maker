@@ -29,6 +29,11 @@ import { errorMessage } from '@/lib/messages';
 
 type Step = 'phone' | 'code';
 
+/** "৩ মিনিট", or "৯০ সেকেন্ড" when the lifetime isn't whole minutes. */
+function codeLifetime(sec: number): string {
+  return sec % 60 === 0 ? `${toBanglaDigits(sec / 60)} মিনিট` : `${toBanglaDigits(sec)} সেকেন্ড`;
+}
+
 /** Only same-site paths, so ?next= can't send users to another website. */
 function safeNext(next: string | null): string {
   return next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
@@ -43,10 +48,12 @@ export function LoginForm() {
   const [step, setStep] = useState<Step>('phone');
   const [phoneInput, setPhoneInput] = useState('');
   const [phone, setPhone] = useState<string | null>(null); // E.164, once a code was requested
-  const [isNewUser, setIsNewUser] = useState(false);
+  // Set when verify answers TERMS_REQUIRED (a correct code for a phone with no account yet).
+  const [needsTerms, setNeedsTerms] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [code, setCode] = useState('');
   const [resendAt, setResendAt] = useState(0);
+  const [expiresInSec, setExpiresInSec] = useState<number | null>(null);
   const [devCode, setDevCode] = useState<string>();
   const [showDevCode, setShowDevCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,9 +75,11 @@ export function LoginForm() {
       api<OtpRequestResponse>('/auth/otp/request', { method: 'POST', body: { phone: e164 } }),
     onSuccess: (data, e164) => {
       setPhone(e164);
-      setIsNewUser(data.isNewUser);
+      setNeedsTerms(false);
+      setAcceptTerms(false);
       setDevCode(data.devCode);
       setResendAt(Date.now() + data.resendAfterSec * 1000);
+      setExpiresInSec(data.expiresInSec);
       setCode('');
       setError(null);
       setNotice(null);
@@ -78,11 +87,17 @@ export function LoginForm() {
     },
     onError: (err, e164) => {
       // A code was sent moments ago and is still valid: continue to the code step with it.
-      if (err instanceof ApiError && err.code === 'RATE_LIMITED' && step === 'phone') {
+      if (
+        err instanceof ApiError &&
+        err.code === 'RATE_LIMITED' &&
+        err.details.reason === 'cooldown' &&
+        step === 'phone'
+      ) {
         const retryAfterSec = Number(err.details.retryAfterSec) || 0;
         setPhone(e164);
-        setIsNewUser(Boolean(err.details.isNewUser));
+        setNeedsTerms(false);
         setResendAt(Date.now() + retryAfterSec * 1000);
+        setExpiresInSec(null);
         setCode('');
         setError(null);
         setNotice('কিছুক্ষণ আগে পাঠানো কোডটি এখনও ব্যবহার করা যাবে।');
@@ -97,15 +112,22 @@ export function LoginForm() {
     mutationFn: (value: string) =>
       api<MeResponse>('/auth/otp/verify', {
         method: 'POST',
-        body: { phone, code: toAsciiDigits(value), ...(isNewUser ? { acceptTerms } : {}) },
+        body: { phone, code: toAsciiDigits(value), ...(needsTerms ? { acceptTerms } : {}) },
       }),
     onSuccess: (data) => {
       queryClient.setQueryData(ME_QUERY_KEY, data.user);
       router.replace(nextPath);
     },
     onError: (err) => {
+      // The code was right and is still usable: keep it and ask for the terms.
+      if (err instanceof ApiError && err.code === 'TERMS_REQUIRED' && !needsTerms) {
+        setNeedsTerms(true);
+        setError(null);
+        setNotice('কোডটি সঠিক। নতুন অ্যাকাউন্ট খুলতে নিচের শর্তাবলীতে সম্মতি দিয়ে লগইন করুন।');
+        return;
+      }
       setError(errorMessage(err));
-      if (err instanceof ApiError && err.code !== 'TERMS_REQUIRED') setCode('');
+      if (!(err instanceof ApiError && err.code === 'TERMS_REQUIRED')) setCode('');
     },
   });
 
@@ -122,12 +144,17 @@ export function LoginForm() {
       return;
     }
     setError(null);
-    requestCode.mutate(e164);
+    sendCode(e164);
+  }
+
+  /** Requests a code; a new code also clears a dead one's error (expired, too many attempts). */
+  function sendCode(e164: string) {
+    requestCode.mutate(e164, { onSuccess: () => verify.reset() });
   }
 
   function submitCode(value = code) {
     if (value.length !== OTP_LENGTH || busy) return;
-    if (isNewUser && !acceptTerms) {
+    if (needsTerms && !acceptTerms) {
       setError(errorMessage(new ApiError(400, 'TERMS_REQUIRED', '')));
       return;
     }
@@ -228,12 +255,16 @@ export function LoginForm() {
                 <ResendTimer
                   availableAt={resendAt}
                   disabled={busy}
-                  onResend={() => phone && requestCode.mutate(phone)}
+                  onResend={() => phone && sendCode(phone)}
                 />
               </div>
+              <p className="text-xs text-slate-500">
+                {expiresInSec !== null && `কোডটি ${codeLifetime(expiresInSec)} কার্যকর থাকবে। `}
+                কোড না পেলে টাইমার শেষে আবার পাঠান।
+              </p>
             </div>
 
-            {isNewUser && (
+            {needsTerms && (
               <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
                 <Checkbox
                   checked={acceptTerms}

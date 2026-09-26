@@ -60,15 +60,19 @@ export const otpRequestSchema = z.object({ phone: phoneSchema });
 export const otpVerifySchema = z.object({
   phone: phoneSchema,
   code: otpCodeSchema,
-  /** Required on the first login (a new account). */
+  /** Required on the first login (a new account); see TERMS_REQUIRED. */
   acceptTerms: z.boolean().optional(),
 });
 
+/**
+ * The same for every phone, registered or not. A new account is only revealed after a correct
+ * code: verify then answers TERMS_REQUIRED and the code stays usable.
+ */
 export interface OtpRequestResponse {
-  /** No account yet: the verify step must include `acceptTerms: true`. */
-  isNewUser: boolean;
   /** Seconds before another code can be requested. */
   resendAfterSec: number;
+  /** Seconds the code works. */
+  expiresInSec: number;
   /** Only when the server runs with OTP_DEV_MODE (no real SMS). */
   devCode?: string;
 }
@@ -94,6 +98,7 @@ export interface MeResponse {
 export interface AuthOptionsResponse {
   devMode: boolean;
   resendAfterSec: number;
+  otpTtlSec: number;
   reviewer: { freePhone: string; premiumPhone: string; code: string } | null;
 }
 
@@ -109,6 +114,8 @@ export const AUTH_ERROR_CODES = [
   'RATE_LIMITED',
   'TERMS_REQUIRED',
   'SMS_UNAVAILABLE',
+  'SMS_FAILED',
+  'SERVICE_UNAVAILABLE',
   'UNAUTHENTICATED',
   'FORBIDDEN',
 ] as const;

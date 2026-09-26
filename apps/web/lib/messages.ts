@@ -86,6 +86,12 @@ export function errorMessage(error: unknown): string {
           ? `অনেক বেশি অনুরোধ হয়েছে। ${bn(sec)} সেকেন্ড পর আবার চেষ্টা করুন।`
           : 'অনেক বেশি অনুরোধ হয়েছে। একটু পরে আবার চেষ্টা করুন।';
       }
+      if (details.reason === 'hourly') {
+        const min = sec ? Math.ceil(sec / 60) : null;
+        return min
+          ? `অনেকবার কোড চাওয়া হয়েছে। ${bn(min)} মিনিট পর আবার চেষ্টা করুন।`
+          : 'অনেকবার কোড চাওয়া হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।';
+      }
       return sec
         ? `একটু অপেক্ষা করুন। ${bn(sec)} সেকেন্ড পর আবার কোড চাইতে পারবেন।`
         : 'অনেক বেশি অনুরোধ। একটু পরে আবার চেষ্টা করুন।';
@@ -94,6 +100,10 @@ export function errorMessage(error: unknown): string {
       return 'অ্যাকাউন্ট খুলতে ব্যবহারের শর্তাবলীতে সম্মতি দিন।';
     case 'SMS_UNAVAILABLE':
       return 'এই মুহূর্তে এসএমএস পাঠানো যাচ্ছে না। একটু পরে চেষ্টা করুন।';
+    case 'SMS_FAILED':
+      return 'এসএমএস পাঠানো যায়নি। নম্বরটি দেখে নিয়ে একটু পরে আবার চেষ্টা করুন।';
+    case 'SERVICE_UNAVAILABLE':
+      return 'সার্ভারে সাময়িক সমস্যা হচ্ছে। কিছুক্ষণ পর আবার চেষ্টা করুন।';
     case 'UNAUTHENTICATED':
       return 'অনুগ্রহ করে আবার লগইন করুন।';
     case 'FORBIDDEN':

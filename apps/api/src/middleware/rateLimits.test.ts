@@ -24,7 +24,7 @@ describe('rate limits', () => {
   it('allows 5 code requests per hour per phone, then answers 429 with a wait time', async () => {
     const app = createApp();
     const phone = '01712345678';
-    // The 45 s cooldown between codes is separate; reset it by clearing codes between requests.
+    // The stored limits (cooldown, codes per hour) are separate; clearing codes resets them.
     const { OtpCode } = await import('../models/OtpCode');
     for (let i = 0; i < 5; i++) {
       await OtpCode.deleteMany({});

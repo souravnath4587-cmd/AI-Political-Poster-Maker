@@ -70,7 +70,7 @@ const envSchema = z
     // Secret mixed into one-time-code hashes. Required in production.
     OTP_PEPPER: z.string().min(16).optional(),
     // No real SMS: codes are logged and returned by the API as `devCode`. Anyone who can reach
-    // the API can then log in as any number, so only use it for local work and the demo.
+    // the API can then log in as any number, so it's refused in production (local work only).
     OTP_DEV_MODE: z.stringbool().default(false),
     // Reviewer access: fixed-code logins that never send SMS (seeded by seed-users).
     REVIEWER_FREE_PHONE: optionalBdPhone,
@@ -79,6 +79,19 @@ const envSchema = z
       .string()
       .regex(new RegExp(`^\\d{${OTP_LENGTH}}$`), `Must be ${OTP_LENGTH} digits`)
       .optional(),
+    // One-time codes: how long a code works, the wait between codes, wrong guesses per code, and
+    // codes per phone / per IP in any hour (counted in MongoDB, so they hold across instances).
+    OTP_TTL_SEC: z.coerce.number().int().min(30).max(900).default(180),
+    OTP_RESEND_COOLDOWN_SEC: z.coerce.number().int().min(10).max(600).default(60),
+    OTP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
+    OTP_MAX_PER_PHONE_PER_HOUR: z.coerce.number().int().min(1).max(50).default(5),
+    OTP_MAX_PER_IP_PER_HOUR: z.coerce.number().int().min(1).max(500).default(20),
+
+    // --- SMS (BulkSMSBD, https://bulksmsbd.net) ---
+    // Without these (and without OTP_DEV_MODE), only reviewer numbers can log in.
+    BULKSMSBD_API_KEY: z.string().min(1).optional(),
+    BULKSMSBD_SENDER_ID: z.string().min(1).optional(),
+    BULKSMSBD_API_URL: z.url().default('https://bulksmsbd.net/api/smsapi'),
   })
   .superRefine((env, ctx) => {
     const reviewerKeys = [
@@ -95,7 +108,24 @@ const envSchema = z
       });
     }
 
+    // Only matters when SMS is really sent (e.g. the sender ID can still be awaiting approval).
+    if (!env.OTP_DEV_MODE && Boolean(env.BULKSMSBD_API_KEY) !== Boolean(env.BULKSMSBD_SENDER_ID)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['BULKSMSBD_SENDER_ID'],
+        message: 'Set both or neither of BULKSMSBD_API_KEY, BULKSMSBD_SENDER_ID',
+      });
+    }
+
     if (env.NODE_ENV !== 'production') return;
+    // Dev mode returns codes in API responses, so anyone could log in as any number.
+    if (env.OTP_DEV_MODE) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['OTP_DEV_MODE'],
+        message: 'Not allowed in production (codes would be returned by the API)',
+      });
+    }
     for (const key of [...cloudinaryKeys, 'OTP_PEPPER'] as const) {
       if (!env[key])
         ctx.addIssue({ code: 'custom', path: [key], message: 'Required in production' });
@@ -119,6 +149,15 @@ export const isProduction = env.NODE_ENV === 'production';
 
 /** Pepper for code hashes; a fixed value outside production so local setup needs no secret. */
 export const otpPepper = env.OTP_PEPPER ?? 'dev-only-pepper-not-secret';
+
+export const bulkSmsBd =
+  env.BULKSMSBD_API_KEY && env.BULKSMSBD_SENDER_ID
+    ? {
+        apiKey: env.BULKSMSBD_API_KEY,
+        senderId: env.BULKSMSBD_SENDER_ID,
+        url: env.BULKSMSBD_API_URL,
+      }
+    : null;
 
 export const reviewer =
   env.REVIEWER_FREE_PHONE && env.REVIEWER_PREMIUM_PHONE && env.REVIEWER_CODE

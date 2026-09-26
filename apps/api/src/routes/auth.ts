@@ -12,7 +12,14 @@ import { clearSessionCookie, readSessionToken, setSessionCookie } from '../lib/s
 import { parseBody } from '../lib/validate';
 import { requireAuth } from '../middleware/auth';
 import { toAuthUser, User, type UserDoc } from '../models/User';
-import { RESEND_AFTER_SEC, requestCode, verifyCode } from '../services/otp';
+import {
+  consumeCode,
+  OTP_TTL_SEC,
+  refundAttempt,
+  RESEND_AFTER_SEC,
+  requestCode,
+  verifyCode,
+} from '../services/otp';
 import { createSession, destroyAllSessions, destroySession } from '../services/session';
 
 export const authRouter = Router();
@@ -28,33 +35,21 @@ authRouter.get('/options', (_req, res) => {
   const body: AuthOptionsResponse = {
     devMode: env.OTP_DEV_MODE,
     resendAfterSec: RESEND_AFTER_SEC,
+    otpTtlSec: OTP_TTL_SEC,
     reviewer,
   };
   res.json(body);
 });
 
 // POST /api/auth/otp/request { phone }
+// The answer is the same whether or not the phone has an account (no enumeration).
 authRouter.post('/otp/request', async (req, res) => {
   const { phone } = parseBody(otpRequestSchema, req.body);
-  const newUser = await isNewUser(phone);
-
-  let devCode: string | undefined;
-  try {
-    ({ devCode } = await requestCode(phone));
-  } catch (err) {
-    // The previous code is still valid: tell the client enough to show the code step anyway.
-    if (err instanceof HttpError && err.code === 'RATE_LIMITED') {
-      throw new HttpError(err.status, err.code, err.message, {
-        ...err.details,
-        isNewUser: newUser,
-      });
-    }
-    throw err;
-  }
+  const { devCode } = await requestCode(phone, req.ip ?? null);
 
   const body: OtpRequestResponse = {
-    isNewUser: newUser,
     resendAfterSec: RESEND_AFTER_SEC,
+    expiresInSec: OTP_TTL_SEC,
     ...(devCode ? { devCode } : {}),
   };
   res.json(body);
@@ -64,13 +59,17 @@ authRouter.post('/otp/request', async (req, res) => {
 authRouter.post('/otp/verify', async (req, res) => {
   const { phone, code, acceptTerms } = parseBody(otpVerifySchema, req.body);
 
-  // Checked before the code so a missing checkbox doesn't use up an attempt.
+  const checked = await verifyCode(phone, code);
+
+  // Only someone holding a correct code learns that the phone has no account yet. The code stays
+  // usable (and the attempt is given back) so the client can resend it with the checkbox ticked.
   const newUser = await isNewUser(phone);
   if (newUser && !acceptTerms) {
+    await refundAttempt(checked);
     throw new HttpError(400, 'TERMS_REQUIRED', 'Accept the terms of use to create an account');
   }
 
-  await verifyCode(phone, code);
+  await consumeCode(checked);
 
   const now = new Date();
   const user = await User.findOneAndUpdate(

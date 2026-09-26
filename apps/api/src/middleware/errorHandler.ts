@@ -2,6 +2,15 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { HttpError } from '../lib/httpError';
 
+/** MongoDB driver errors that mean the database can't be reached (not a bug in the request). */
+const DB_UNAVAILABLE_ERRORS = new Set([
+  'MongoServerSelectionError',
+  'MongoNetworkError',
+  'MongoNetworkTimeoutError',
+  'MongoNotConnectedError',
+  'MongoTopologyClosedError',
+]);
+
 export const notFound: RequestHandler = (_req, _res, next) => {
   next(new HttpError(404, 'NOT_FOUND', 'Route not found'));
 };
@@ -24,6 +33,14 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     res.status(400).json({
       error: { code: 'VALIDATION_ERROR', message: 'Invalid request', issues: err.issues },
     });
+    return;
+  }
+
+  if (DB_UNAVAILABLE_ERRORS.has(err?.name)) {
+    req.log.error({ err }, 'Database unavailable');
+    res
+      .status(503)
+      .json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Service temporarily unavailable' } });
     return;
   }
 

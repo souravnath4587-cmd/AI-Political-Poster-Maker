@@ -1,6 +1,6 @@
 # Implementation Plan — AI Political Poster Maker
 
-> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (Phase 10 in progress: web deployed, API not yet).
+> Based on `project-scope.md` (v0.5) and `tech-stack.md`, 2026-09-25. Last updated 2026-09-25 (Phase 10: deployed on Vercel; video, phone check and submission left).
 > Deadline: **2026-09-26 23:59**, one developer. **Feature freeze: 2026-09-26 18:00.**
 
 ## How to read this plan
@@ -28,10 +28,10 @@
 | 7 — Headlines | ✅ `POST /api/headlines/suggest`: 3–5 short Bangla headlines per occasion, using what the user typed (organization, area, names); party-neutral, respectful, no anniversary numbers; cleaned (Bangla only, ≤ 60 chars, no duplicates). 20/day per user through the Phase 6 quota system, refunded on failure; logged. Web: “এআই পরামর্শ” chips under the headline on the form and the edit panel. Real Gemini: 5 suggestions in ~2–3 s. 109 tests. | `8c4e924` |
 | 8 — History & guardrails | ✅ History page with paging (`?before=` cursor), A3/4:5 downloads and in-card delete confirmation; `DELETE /api/posters/:id` removes the poster, its images and source photos no other poster uses. Rate limits (in-memory, per IP / phone / session) on login codes, code checks, uploads, poster writes and suggestions. Keyword blocklist on poster text, suggestion context and suggestions; the form marks the field. Terms page finalized. 132 tests; checked in the browser. | `153119d` |
 | 9 — Polish | ✅ except the real-phone check. Emulated phone pass at 360×780 with touch on every page: no sideways scrolling, every tap target ≥ 40 px (13 were smaller: back arrow, logout, reviewer buttons, inline links, suggestion chips, history buttons…). No English visible to users; Bangla messages for every API error code. Render checks now in `pnpm test` with real Chromium (2 templates × 2 sizes × 3 variants + page leaks). Free reviewer account emptied of test data. 145 tests. | `d967842` |
-| 10 — Ship & submit | In progress. Done without external services: production builds of API and web; the API bundle run in production mode against Atlas, Cloudinary and Gemini (health, `/api/dev` hidden, JSON logs, full poster flow: upload → poster in 7 s → A3 link in 7 s → delete); `render.yaml` lists every setting (Render generates `OTP_PEPPER`); README; 3 sample posters in `docs/samples`. Fixed: empty `KEY=` lines in `.env` (copied from the example) made the API refuse to start. Pushed to GitHub. **Web live on Vercel** (`ai-poster-maker-omega.vercel.app`, Root Directory `apps/web`), but **the API is not deployed yet**: no Render service answers, and the Vercel `API_ORIGIN` points at a private address (`/api/health` → `DNS_HOSTNAME_RESOLVED_PRIVATE`), so login and posters fail in production. A second Vercel project (`ai-political-poster-maker`) was building `apps/api` and failed on every deploy (helmet types); it was deleted, since the API belongs on Render. **Waiting for the owner:** Render Blueprint, then `API_ORIGIN` = Render URL + redeploy, demo video, real-phone check, submission. | `4e450f4` |
+| 10 — Ship & submit | **Deployed on Vercel** (owner's choice, no Render): web `poster-maker-web.vercel.app`, API `poster-maker-api.vercel.app` (Express as one function, `@sparticuz/chromium`, region `sin1`, 60 s limit). Verified live: health + DB, `/api/dev` hidden, reviewer login → 2 uploads (~6 s each with face detection) → poster in 7 s incl. Chromium cold start → A3 3508×4961 @300 DPI (3.6 MB) in 6.5 s → delete. README updated with the live URL and deploy steps. **Waiting for the owner:** demo video, real-phone check, submission. | `4e450f4`, `d31b5e6` |
 
 **Open decisions and follow-ups:**
-- **Render deploy (4.5):** deploy the API now to measure A3 rendering within the free tier's 512 MB, or wait until Phase 10 and accept that risk. The user prefers localhost for now. This is the last open P0 item before shipping.
+- **API hosting (4.5):** ✅ resolved by moving the API to Vercel: A3 renders in ~6.5 s within the function limits.
 - **Blocklist review:** the starting list in `apps/api/src/services/blocklist.ts` needs the owner's review (project-scope open question 2).
 - **Test data:** ✅ the free reviewer account (01999000001) is empty. The premium reviewer account (01999000002) has one poster (“Jhone China”) and 6 uploads that were not made by the automated tests; they were left for the owner to keep or delete. One other user exists in the database (also left as is).
 - **Real-phone check (9.1):** the phone pass was emulated in Chrome; try the whole flow once on a real mid-range Android phone before submitting.
@@ -70,15 +70,17 @@
 - **Headline length:** the prompt asks for ≤ 40 characters, but up to 60 are accepted, since Bangla vowel signs count as characters and natural 5–6 word headlines run 41–50.
 
 *Deployment*
+- **Everything on Vercel (owner's choice):** the API runs as one Vercel function (`apps/api/api/index.js` → `dist/vercel.js`, built by `tsup` so Vercel never compiles our TypeScript itself; its own compile broke on helmet's CJS types, TS2349). Chromium comes from `@sparticuz/chromium` 153 when `VERCEL` is set. `render.yaml`/Dockerfile are kept as the alternative. `vercel link` writes a root `.env.local` with production secrets and edits `.gitignore`: delete/revert both after linking.
 - **Empty settings count as unset:** `KEY=` lines copied from `.env.example` are ignored instead of failing validation (an empty `OTP_PEPPER=` had stopped the API from starting).
 - **`render.yaml` holds every non-secret setting**; secrets are entered in the Render dashboard, and Render generates `OTP_PEPPER`.
-- **`OTP_DEV_MODE=true` in production (owner's decision):** anyone can log in with any number for the demo; the README lists this as a known limitation. Switch to `false` to allow only the reviewer numbers.
+- ~~`OTP_DEV_MODE=true` in production~~ **Replaced after the deadline (2026-09-26):** real SMS through BulkSMSBD, and the API refuses to start in production with `OTP_DEV_MODE=true`. Before deploying: set `OTP_DEV_MODE=false` and the `BULKSMSBD_*` keys in the Vercel project, keep IP whitelisting off in the BulkSMSBD panel, and run `db:sync-otp-indexes` once against Atlas.
 - **`API_ORIGIN` must be set in Vercel before the first build:** the `/api` rewrite is compiled into the build.
 - **Sample posters use the placeholder silhouettes**, not photos of real people, so the repo never shows a real person on a political poster.
 
 *Quotas and guardrails*
 - **Quota counts come from `GET /api/quota`**, not `/auth/me` as planned: `/me` is cached for session checks, while the counts change after every poster.
 - **Blocklist** (`apps/api/src/services/blocklist.ts`) is a small starting list: militant organizations banned in Bangladesh (also caught when spaced out letter by letter) and violent commands (whole words only, so mourning text like “হত্যা করা হয়েছে” passes). No political parties. The owner should review it (open question 2).
+- **Login-code hardening (after the deadline, 2026-09-26):** codes keep a `status` (`pending`/`verified`/`superseded`/`failed`) instead of being deleted, live `OTP_TTL_SEC` (180 s, owner chose 3 min over 1 min because BD SMS can take 30–60 s), 60 s resend cooldown (race-safe), 5 codes per phone and 20 per IP per hour counted in MongoDB (holds across Vercel instances). `otp/request` no longer returns `isNewUser` (it let anyone check whether a number has an account); a new number learns it needs the terms only after a correct code (`TERMS_REQUIRED`, code stays usable). Database outages answer 503 `SERVICE_UNAVAILABLE`.
 - **Rate limits** (per API instance, in memory): code requests 20/h per IP and 5/h per phone (reviewer numbers exempt), code checks 30/15 min per IP, uploads 40/10 min, poster writes 30/10 min, suggestions 10/min per session. Off in tests except `rateLimits.test.ts`.
 - **History is paged by poster `_id`** (index `{ userId, _id }`), which grows with creation time.
 
@@ -182,7 +184,7 @@ Kept from the draft: dark navy header with shield icon and "সুরক্ষ�
 | 4.2 | `POST /api/upload`: multer (memory, 10 MB, image MIME only) → sharp (min resolution, auto-rotate, strip EXIF/GPS) → Cloudinary `uploads/{userId}/` with authenticated delivery | 60m | P0 | ✅ | Phone photo uploads; too-small photo gets a Bangla error |
 | 4.3 | Signed-URL helper for private assets (used by render and download) | 20m | P0 | ✅ | Signed URL loads; unsigned URL is refused |
 | 4.4 | Gemini client (`@google/genai`) + face box: structured JSON, Zod-validated, timeout, center-crop fallback, log to `GenerationLog`; crop stored with the upload | 60m | P1 | ✅ | Off-center face ends up centered in the frame; with Gemini disabled, center crop is used |
-| 4.5 | *(from 0.6)* Deploy the **API only** to Render with `render.yaml`; temporarily allow `/api/dev/render-test` there (env flag) to measure A3 time and memory; then turn it off | 45m | P0 | | A3 PNG from Render with correct conjuncts in < 30 s, no out-of-memory restart |
+| 4.5 | *(from 0.6)* Deploy the **API only** to Render with `render.yaml`; temporarily allow `/api/dev/render-test` there (env flag) to measure A3 time and memory; then turn it off | 45m | P0 | ✅ | A3 PNG from Render with correct conjuncts in < 30 s, no out-of-memory restart. *Done on Vercel instead: A3 in 6.5 s.* |
 
 ## Phase 5 — Generation end to end (~6.5 h) · Day 2 morning ✅
 
@@ -246,7 +248,7 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 
 | ID | Task | Est | Pri | Status | Done when |
 |---|---|---|---|---|---|
-| 10.1 | Deploy web to Vercel (Root Directory `apps/web`, `API_ORIGIN` = Render URL). Render env: `APP_ORIGIN`, `MONGODB_URI`, Cloudinary keys, `OTP_PEPPER`, reviewer numbers + code, `GEMINI_API_KEY` (+ model names), `CHROME_NO_SANDBOX=true`; decide `OTP_DEV_MODE` (needed for non-reviewer logins without an SMS provider, but lets anyone log in as any number). `DNS_SERVERS` not needed there. Seed templates and reviewer users on the production database; Atlas network access; confirm `/api/dev/*` is not mounted | 45m | P0 | | Production URL works in a private window. *Web on Vercel ✅; API on Render, `API_ORIGIN`, seeding still open.* |
+| 10.1 | Deploy web to Vercel (Root Directory `apps/web`, `API_ORIGIN` = Render URL). Render env: `APP_ORIGIN`, `MONGODB_URI`, Cloudinary keys, `OTP_PEPPER`, reviewer numbers + code, `GEMINI_API_KEY` (+ model names), `CHROME_NO_SANDBOX=true`; decide `OTP_DEV_MODE` (needed for non-reviewer logins without an SMS provider, but lets anyone log in as any number). `DNS_SERVERS` not needed there. Seed templates and reviewer users on the production database; Atlas network access; confirm `/api/dev/*` is not mounted | 45m | P0 | ✅ | Production URL works in a private window. *Both apps on Vercel (API as a function, not Render); Atlas data already seeded.* |
 | 10.2 | Run the acceptance checklist (`project-scope.md` §9) on a real phone; fix blockers only | 45m | P0 | | All P0 items pass; failures noted |
 | 10.3 | README: what it is, architecture diagram, why Option B, why DB sessions, setup (`pnpm dev`, `.env.example`, `DNS_SERVERS` note), reviewer access (free/premium test numbers), quota rules, cut list, known limitations (starting blocklist, in-memory rate limits for one instance, face-crop fallback, dev-mode logins), next steps | 90m | P0 | ✅ | A new reader can log in and run it locally. *Live URL and video link still to be added.* |
 | 10.4 | Commit 2–3 sample posters; record a 1–2 min demo video | 45m | P0 | | Files in repo; video link in README. *Samples ✅ in `docs/samples` (placeholder photos, no real people); video pending.* |
@@ -256,7 +258,7 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 
 ## After the deadline (not planned)
 
-- Real SMS provider (depends on 0.7)
+- ~~Real SMS provider (depends on 0.7)~~ Done: BulkSMSBD (sender ID approval needed before it sends)
 - 1:1 social export (1080×1080)
 - Open question 1, option B: free text-only re-renders per poster
 - Admin panel, moderation queue, PDF export, bulk/CSV, payments, campaign templates (see `project-scope.md` §4)
@@ -265,3 +267,4 @@ Design references in the same Superdesign project: *Expanded Template Library* (
 - Cleanup job for uploads that were never used in a poster
 - Blocklist managed by an admin instead of a code file
 - AI backgrounds (2.3), if not done before the deadline
+- ~~Third template~~ Done: স্বাধীনতা দিবস (`independence-day`, occasion `national_day`, 4:5 + A3, 1 or 2 leaders); shared layout pieces moved to `templates/parts.ts` (বিজয় দিবস output unchanged). Seed it only after the API that knows `national_day` is deployed

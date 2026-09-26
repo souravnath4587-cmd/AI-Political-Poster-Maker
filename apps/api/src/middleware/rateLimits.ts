@@ -55,8 +55,10 @@ function limiter(
 const writesOnly = (req: Request) => req.method === 'GET' || req.method === 'HEAD';
 
 /**
- * In-memory limits (one API instance). Created per app so each test app starts with fresh
- * counters. Daily quotas (Phase 6) are separate: these stop bursts and guessing.
+ * In-memory limits: a cheap first layer, counted per API instance. The one-time-code limits
+ * that must hold across instances (cooldown, codes per phone / IP per hour, wrong guesses per
+ * code) are also enforced in services/otp.ts, from MongoDB. Created per app so each test app
+ * starts with fresh counters. Daily quotas (Phase 6) are separate: these stop bursts and guessing.
  */
 export function createRateLimits() {
   return {
