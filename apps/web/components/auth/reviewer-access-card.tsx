@@ -12,6 +12,7 @@ interface ReviewerAccessCardProps {
   onShowDevCodeChange: (show: boolean) => void;
   /** The code from the last request, when the server runs in dev mode. */
   devCode?: string;
+  onUseCode?: (code: string) => void;
 }
 
 /**
@@ -24,6 +25,7 @@ export function ReviewerAccessCard({
   showDevCode,
   onShowDevCodeChange,
   devCode,
+  onUseCode,
 }: ReviewerAccessCardProps) {
   const { reviewer, devMode } = options;
   if (!reviewer && !devMode) return null;
@@ -95,14 +97,32 @@ export function ReviewerAccessCard({
           <div className="text-slate-600">
             ফিক্সড কোড:{' '}
             <span className="font-semibold text-slate-800">{toBanglaDigits(reviewer.code)}</span>
+            {devMode && (
+              <span className="ml-2 text-xs text-emerald-600 font-medium">
+                (যেকোনো নম্বরে কার্যকর)
+              </span>
+            )}
           </div>
         )}
         {devMode && showDevCode && (
-          <div className="text-slate-600">
-            সর্বশেষ পাঠানো কোড:{' '}
-            <span className="font-semibold text-emerald-700">
-              {devCode ? toBanglaDigits(devCode) : 'এখনও কোনো কোড পাঠানো হয়নি'}
-            </span>
+          <div className="flex items-center justify-between gap-2 text-slate-600">
+            <div>
+              সর্বশেষ পাঠানো কোড:{' '}
+              <span className="font-semibold text-emerald-700">
+                {devCode ? toBanglaDigits(devCode) : 'এখনও কোনো কোড পাঠানো হয়নি'}
+              </span>
+            </div>
+            {devCode && onUseCode && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs font-medium text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                onClick={() => onUseCode(devCode)}
+              >
+                কোড বসান
+              </Button>
+            )}
           </div>
         )}
       </div>

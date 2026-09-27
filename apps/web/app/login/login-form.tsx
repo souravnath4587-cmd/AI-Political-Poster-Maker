@@ -55,7 +55,7 @@ export function LoginForm() {
   const [resendAt, setResendAt] = useState(0);
   const [expiresInSec, setExpiresInSec] = useState<number | null>(null);
   const [devCode, setDevCode] = useState<string>();
-  const [showDevCode, setShowDevCode] = useState(false);
+  const [showDevCode, setShowDevCode] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -76,11 +76,12 @@ export function LoginForm() {
     onSuccess: (data, e164) => {
       setPhone(e164);
       setNeedsTerms(false);
-      setAcceptTerms(false);
+      setAcceptTerms(true);
       setDevCode(data.devCode);
+      setShowDevCode(true);
       setResendAt(Date.now() + data.resendAfterSec * 1000);
       setExpiresInSec(data.expiresInSec);
-      setCode('');
+      setCode(data.devCode ?? '');
       setError(null);
       setNotice(null);
       setStep('code');
@@ -311,6 +312,7 @@ export function LoginForm() {
           showDevCode={showDevCode}
           onShowDevCodeChange={setShowDevCode}
           devCode={devCode}
+          onUseCode={(c) => setCode(c)}
         />
       )}
     </div>

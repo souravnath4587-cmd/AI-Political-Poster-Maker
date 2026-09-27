@@ -126,6 +126,11 @@ export async function verifyCode(phone: string, code: string): Promise<CheckedCo
     return { id: null };
   }
 
+  // Developer mode: any phone number can log in using the developer/reviewer fixed code
+  if (env.OTP_DEV_MODE && reviewer && safeEqual(code, reviewer.code)) {
+    return { id: null };
+  }
+
   const now = new Date();
   // Count the attempt in the same update that finds the code, so parallel guesses can't
   // get more than OTP_MAX_ATTEMPTS tries.

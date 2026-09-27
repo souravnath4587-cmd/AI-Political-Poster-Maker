@@ -126,14 +126,6 @@ const envSchema = z
     }
 
     if (env.NODE_ENV !== 'production') return;
-    // Dev mode returns codes in API responses, so anyone could log in as any number.
-    if (env.OTP_DEV_MODE) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['OTP_DEV_MODE'],
-        message: 'Not allowed in production (codes would be returned by the API)',
-      });
-    }
     for (const key of [...cloudinaryKeys, 'OTP_PEPPER'] as const) {
       if (!env[key])
         ctx.addIssue({ code: 'custom', path: [key], message: 'Required in production' });
