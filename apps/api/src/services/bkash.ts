@@ -128,7 +128,7 @@ export class BkashClient {
       transactionStatus: str('transactionStatus'),
       amount: str('amount'),
       currency: str('currency'),
-      merchantInvoiceNumber: str('merchantInvoiceNumber'),
+      merchantInvoiceNumber: str('merchantInvoiceNumber') ?? str('merchantInvoice'),
     };
     if (result.statusCode !== BKASH_OK) {
       logger.warn(

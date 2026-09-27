@@ -25,18 +25,24 @@ No Bangladeshi SIM needed. On the login page, use the **রিভিউয়া
 | Free (3 posters + 2 regenerations a day, watermark) | `01999000001` | `123456` |
 | Pro (10 + 5 a day, no watermark) | `01999000002` | `123456` |
 
+In developer mode (`OTP_DEV_MODE=true`), any phone number can log in using the developer/reviewer
+fixed code (`123456`), and the login panel displays the latest generated code with a quick
+**"কোড বসান"** (one-click fill) button.
+
 The first poster after a quiet spell takes a few seconds longer while the API starts Chromium.
 
 ## What it does
 
 1. **Log in** with a phone number and a one-time code (Bangla or English digits).
-2. **Pick a template** — বিজয় দিবস, স্বাধীনতা দিবস, শোক ও শ্রদ্ধাঞ্জলি, শহীদ দিবস (২১শে ফেব্রুয়ারি), ঈদ মোবারক or শুভ নববর্ষ.
+2. **Pick a template** — বিজয় দিবস, স্বাধীনতা দিবস, শোক ও শ্রদ্ধাঞ্জলি, শহীদ দিবস (২১শে ফেব্রুয়ারি), ঈদ মোবারক or শুভ নববর্ষ. Templates can be filtered by occasion (সব, জাতীয় দিবস, শোক ও স্মৃতি, ধর্মীয় ও উৎসব).
 3. **Fill the form**: name, পদবি, party/organization, area, headline; upload up to two leader
    photos, your own photo and an optional party symbol. Photos are cropped around the detected
    face; low-resolution photos get a warning.
 4. **এআই পরামর্শ** suggests 3–5 Bangla headlines for the occasion.
 5. **Generate**: the poster is ready in a few seconds. Download **A3 (3508×4961, 300 DPI)** or
    **4:5 (1080×1350)**, edit the text and regenerate, or find it later under **আমার পোস্টার**.
+6. **Upgrade plan**: purchase Pro (৳100/month) or Premium (৳150/month) directly with bKash on the
+   **প্ল্যান** page.
 
 The whole interface is Bangla and built for phones (checked at 360 px).
 
@@ -46,10 +52,11 @@ The whole interface is Bangla and built for phones (checked at 360 px).
 flowchart LR
   B[Phone browser] -->|/api/* rewrite, first-party cookie| W[Next.js 16 on Vercel]
   W --> A[Express 5 API on Vercel<br/>function + serverless Chromium]
-  A --> M[(MongoDB Atlas<br/>users, sessions, posters, quotas)]
+  A --> M[(MongoDB Atlas<br/>users, sessions, posters, quotas, payments)]
   A --> C[(Cloudinary<br/>private photos + posters)]
   A --> P[Puppeteer / Chromium<br/>HTML template → PNG]
   A --> G[Gemini<br/>face box, headline ideas]
+  A --> K[bKash Tokenized Checkout<br/>grant token, create, execute, status]
 ```
 
 - **Monorepo** (pnpm workspaces): `apps/web` (Next.js), `apps/api` (Express), `packages/shared`
@@ -79,23 +86,41 @@ Details of every decision and trade-off: [`tech-stack.md`](tech-stack.md),
 [`project-scope.md`](project-scope.md) and the running log in
 [`implementation-plan.md`](implementation-plan.md).
 
-## Quotas and tiers
+## Quotas, tiers and payments
 
 | | Free | Pro | Premium |
 |---|---|---|---|
-| Price (monthly; shown, payments not built yet) | Free | ৳100 / month | ৳150 / month |
+| Price | Free | ৳100 / month | ৳150 / month |
 | New posters per day | 3 | 10 | Unlimited |
 | Regenerations (text/photo edits) per day | 2 | 5 | Unlimited |
 | AI headline suggestions per day | 20 | 20 | Unlimited |
 | Watermark | Small, bottom-right | None | None |
 
-Re-downloading an existing poster is always free. Pro and Premium are assigned by an admin for
-now (payments are out of scope); an expired paid plan counts as free. "Unlimited" still keeps the
-per-minute abuse limits.
+Re-downloading an existing poster is always free. Plans can be purchased directly via **bKash Tokenized Checkout** on `/plans` (or assigned by an admin); an expired paid plan automatically counts as free. "Unlimited" still keeps the per-minute abuse limits.
+
+**Plan switching & upgrades:**
+- Purchasing the same plan extends the expiration by 30 days from the current end date.
+- Upgrading from Pro to Premium credits remaining Pro days proportionately into extra Premium days (`remaining_pro_days × 100 / 150`).
+- Downgrading while Premium is active is refused until expiration.
+- Admin-assigned permanent plans (no end date) cannot be repurchased.
 
 **Upgrading an existing database:** the 10-a-day plan used to be stored as `premium`, which is now
 the unlimited plan. Run `pnpm --filter @app/api db:migrate-plan-pro` once per database *before*
 deploying this version (and never after anyone has been given the new Premium plan).
+
+## bKash Payments
+
+Payments are integrated using **bKash Tokenized Checkout** (mode 0011):
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `POST /api/payments/bkash` | Auth required | `{ plan: 'pro' \| 'premium' }` → creates a payment in MongoDB and returns `bkashURL` |
+| `GET /api/payments/bkash/callback` | Public redirect | bKash redirects browser back (`paymentID`, `status`) → server executes payment, applies plan, redirects to `/plans?payment=...` |
+| `GET /api/payments/me` | Auth required | Returns user's last 10 payments with status, amount, TrxID, and date |
+
+- **Security & verification:** Callback status from the browser query string is never trusted blindly. The backend calls bKash's `/tokenized/checkout/execute` (with fallback to `/payment/status`) server-side to confirm payment completion, currency (`BDT`), and matching invoice amount before updating user plans.
+- **Idempotency & race handling:** Callbacks use atomic MongoDB state claiming (`pending` → `processing` → `completed`/`failed`) so duplicate redirects or browser refreshes never apply plans twice.
+- **Sandbox testing:** Pre-configured with bKash sandbox credentials. Use sandbox test wallets (e.g. `01770618575`, `01929918378`), OTP `123456`, and PIN `12121`.
 
 ## Guardrails
 
@@ -164,6 +189,8 @@ Open http://localhost:3000.
   without it, photos use a centred crop and the suggestion button explains it's unavailable.
 - **`OTP_DEV_MODE=true`** shows login codes in the console and on the login page instead of
   sending SMS. To send real SMS, set it to `false` and fill in the `BULKSMSBD_*` keys.
+- **bKash payments** run against bKash sandbox by default (`BKASH_BASE_URL=https://tokenized.sandbox.bka.sh/v1.2.0-beta`).
+  Provide `BKASH_APP_KEY`, `BKASH_APP_SECRET`, `BKASH_USERNAME`, `BKASH_PASSWORD` to test checkouts.
 - **`querySrv ECONNREFUSED`** when connecting to Atlas: some local DNS proxies refuse SRV
   lookups. Set `DNS_SERVERS=8.8.8.8,1.1.1.1` in `apps/api/.env`.
 
@@ -171,7 +198,7 @@ Useful scripts:
 
 | Command | What it does |
 |---|---|
-| `pnpm test` | All tests (161), including real Chromium renders |
+| `pnpm test` | All tests (175), including bKash payments and real Chromium renders |
 | `pnpm typecheck` / `pnpm lint` | Types and lint for all packages |
 | `pnpm --filter @app/api render:sample` | Renders every template/size/variant to `apps/api/.data/renders` |
 | `pnpm --filter @app/api templates:thumbnails` | Rebuilds template thumbnails after a template change |
@@ -185,7 +212,8 @@ of CLI uploads):
   runs `tsup` and sends every route to one function (`api/index.js` → `src/vercel.ts`, the same
   Express app without `listen()`); Chromium comes from `@sparticuz/chromium`. Env: `NODE_ENV=production`,
   `APP_ORIGIN` (the web URL), `MONGODB_URI`, Cloudinary keys, `GEMINI_API_KEY`, `OTP_PEPPER`
-  (16+ random characters), reviewer numbers + code, `BULKSMSBD_API_KEY` + `BULKSMSBD_SENDER_ID`.
+  (16+ random characters), reviewer numbers + code, `BULKSMSBD_API_KEY` + `BULKSMSBD_SENDER_ID`,
+  and bKash merchant credentials (`BKASH_BASE_URL`, `BKASH_APP_KEY`, `BKASH_APP_SECRET`, `BKASH_USERNAME`, `BKASH_PASSWORD`).
   `OTP_DEV_MODE` must be off: the API refuses to start in production with it. Atlas must allow
   `0.0.0.0/0`, and IP whitelisting must stay off in the BulkSMSBD panel (Vercel has no fixed IPs).
   Then run the two seed scripts against the production database, and once
@@ -201,7 +229,6 @@ with a full Chrome.
 Scoped for one developer and a two-day deadline (see [`project-scope.md`](project-scope.md)):
 
 - **Campaign templates** — Election Commission rules on campaign posters need checking first.
-- **Payments** (bKash/Nagad) — pro exists but is assigned by an admin.
 - **Admin panel, moderation queue, PDF export, bulk/CSV generation** — managed by scripts for now.
 - **AI-generated backgrounds** — templates use hand-made CSS gradients.
 
@@ -221,4 +248,4 @@ Scoped for one developer and a two-day deadline (see [`project-scope.md`](projec
 ## Next steps
 
 Manual crop control · campaign templates after checking EC rules ·
-payments · admin panel with moderation queue · shared rate-limit store · cleanup of unused uploads.
+admin panel with moderation queue · shared rate-limit store · cleanup of unused uploads.
